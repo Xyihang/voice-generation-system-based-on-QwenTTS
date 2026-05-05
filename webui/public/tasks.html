@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务队列 - Qwen3-TTS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        [data-theme="light"] {
+            --primary-light: #e1eaff;
+            --primary: #4e83fd;
+            --primary-dark: #3370ff;
+            --primary-darker: #245bdb;
+            --accent: #05a4b6;
+            --accent-light: #c2eff0;
+            --text-primary: #1f2329;
+            --text-secondary: #646a73;
+            --text-tertiary: #8f959e;
+            --bg-gradient-start: #e8f0fe;
+            --bg-gradient-end: #d6e4ff;
+            --card-bg: rgba(255, 255, 255, 0.88);
+            --glass-border: rgba(51, 112, 255, 0.12);
+            --surface-raised: rgba(255, 255, 255, 0.95);
+            --error-bg: rgba(245, 74, 69, 0.08);
+            --error-text: #d83931;
+            --success-bg: rgba(52, 199, 36, 0.08);
+            --success-text: #2ea121;
+            --status-pending-bg: rgba(255, 193, 7, 0.15);
+            --status-pending-text: #f57f17;
+            --status-running-bg: rgba(33, 150, 243, 0.15);
+            --status-running-text: #1565c0;
+            --status-completed-bg: rgba(76, 175, 80, 0.15);
+            --status-completed-text: #2e7d32;
+            --task-item-bg: rgba(232, 240, 254, 0.5);
+            --task-text-bg: rgba(255, 255, 255, 0.7);
+            --progress-bg: rgba(100, 181, 246, 0.2);
+            --shadow-sm: 0 2px 8px rgba(51, 112, 255, 0.06);
+            --shadow: 0 8px 32px rgba(51, 112, 255, 0.1);
+            --shadow-hover: 0 16px 48px rgba(51, 112, 255, 0.18);
+            --shadow-glow: 0 0 24px rgba(51, 112, 255, 0.15);
+            --border-radius: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --bubble-opacity: 0.25;
+        }
+
+        [data-theme="dark"] {
+            --primary-light: rgba(78, 131, 253, 0.15);
+            --primary: #4e83fd;
+            --primary-dark: #3370ff;
+            --primary-darker: #82a7fc;
+            --accent: #2cb8c5;
+            --accent-light: rgba(5, 164, 182, 0.15);
+            --text-primary: #f2f3f5;
+            --text-secondary: #a0a5ac;
+            --text-tertiary: #6b7179;
+            --bg-gradient-start: #1a1e24;
+            --bg-gradient-end: #151920;
+            --card-bg: rgba(39, 46, 59, 0.85);
+            --glass-border: rgba(78, 131, 253, 0.15);
+            --surface-raised: rgba(46, 53, 66, 0.9);
+            --error-bg: rgba(245, 74, 69, 0.12);
+            --error-text: #f98e8b;
+            --success-bg: rgba(52, 199, 36, 0.12);
+            --success-text: #8ee085;
+            --status-pending-bg: rgba(255, 193, 7, 0.18);
+            --status-pending-text: #ffc107;
+            --status-running-bg: rgba(33, 150, 243, 0.18);
+            --status-running-text: #64b5f6;
+            --status-completed-bg: rgba(76, 175, 80, 0.18);
+            --status-completed-text: #81c784;
+            --task-item-bg: rgba(78, 131, 253, 0.06);
+            --task-text-bg: rgba(39, 46, 59, 0.7);
+            --progress-bg: rgba(78, 131, 253, 0.15);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --shadow-hover: 0 16px 48px rgba(0, 0, 0, 0.4);
+            --shadow-glow: 0 0 24px rgba(78, 131, 253, 0.2);
+            --border-radius: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --bubble-opacity: 0.12;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow-x: hidden;
+            transition: background 0.4s ease, color 0.4s ease;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--text-tertiary);
+            border-radius: 4px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--text-tertiary) transparent;
+        }
+
+        .background-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(100, 181, 246, var(--bubble-opacity)), rgba(0, 188, 212, calc(var(--bubble-opacity) * 0.8)));
+            animation: float 15s infinite ease-in-out;
+        }
+
+        .bubble:nth-child(1) { width: 80px; height: 80px; left: 10%; animation-delay: 0s; }
+        .bubble:nth-child(2) { width: 120px; height: 120px; left: 20%; animation-delay: 2s; }
+        .bubble:nth-child(3) { width: 60px; height: 60px; left: 35%; animation-delay: 4s; }
+        .bubble:nth-child(4) { width: 100px; height: 100px; left: 50%; animation-delay: 1s; }
+        .bubble:nth-child(5) { width: 70px; height: 70px; left: 65%; animation-delay: 3s; }
+        .bubble:nth-child(6) { width: 90px; height: 90px; left: 80%; animation-delay: 5s; }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .logo-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .logo-icon svg {
+            width: 36px;
+            height: 36px;
+            fill: white;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-dark), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-top: 8px;
+        }
+
+        .nav-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            border: none;
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 500;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: var(--shadow);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: inherit;
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+            color: var(--primary-dark);
+        }
+
+        .nav-btn.active {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 32px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .task-item {
+            background: var(--task-item-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-left: 4px solid var(--primary);
+            transition: var(--transition);
+            animation: fadeIn 0.4s ease-out;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .task-item:hover {
+            transform: translateX(5px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .task-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .task-header strong {
+            font-size: 1.05rem;
+            color: var(--text-primary);
+        }
+
+        .task-id {
+            font-family: 'Courier New', monospace;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-left: 10px;
+            opacity: 0.7;
+        }
+
+        .task-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .status-pending {
+            background: var(--status-pending-bg);
+            color: var(--status-pending-text);
+        }
+
+        .status-running {
+            background: var(--status-running-bg);
+            color: var(--status-running-text);
+            animation: statusPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .status-completed {
+            background: var(--status-completed-bg);
+            color: var(--status-completed-text);
+        }
+
+        .status-failed {
+            background: var(--error-bg);
+            color: var(--error-text);
+        }
+
+        .task-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .task-info-item {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .task-info-label {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            font-size: 0.85rem;
+        }
+
+        .task-text {
+            background: var(--task-text-bg);
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            border-left: 3px solid var(--accent);
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: var(--progress-bg);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            transition: width 0.5s ease;
+            border-radius: 3px;
+        }
+
+        .task-error {
+            color: var(--error-text);
+            margin-top: 10px;
+            font-size: 0.85rem;
+            padding: 8px 12px;
+            background: var(--error-bg);
+            border-radius: 8px;
+            max-height: 100px;
+            overflow-y: auto;
+            word-break: break-all;
+        }
+
+        .task-actions {
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            border: none;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: var(--transition);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-family: inherit;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .task-audio {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .task-audio audio {
+            width: 100%;
+            height: 36px;
+            border-radius: 8px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.4;
+            fill: var(--text-secondary);
+        }
+
+        .empty-state p {
+            font-size: 1.1rem;
+        }
+
+        .auto-refresh-indicator {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-top: 16px;
+            opacity: 0.7;
+        }
+
+        .auto-refresh-indicator .dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .refresh-fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: var(--shadow-glow);
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3em;
+            z-index: 10;
+        }
+
+        .refresh-fab:hover {
+            transform: scale(1.1);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .refresh-fab.spinning {
+            animation: spin 0.8s linear;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .theme-toggle {
+            padding: 8px 16px;
+            border: none;
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 500;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: var(--shadow);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: inherit;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+        }
+
+        .theme-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+            color: var(--primary-dark);
+        }
+
+        .waveform-container {
+            width: 100%;
+            height: 64px;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            background: var(--task-text-bg);
+            border: 1px solid var(--glass-border);
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .waveform-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .waveform-progress-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 2px;
+            height: 100%;
+            background: var(--primary);
+            box-shadow: 0 0 6px var(--primary);
+            pointer-events: none;
+            transition: left 0.05s linear;
+        }
+
+        .waveform-time {
+            position: absolute;
+            bottom: 4px;
+            right: 8px;
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+            pointer-events: none;
+        }
+
+        .task-player {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .task-player audio {
+            width: 100%;
+            height: 36px;
+            border-radius: 8px;
+        }
+
+        .clone-btn,
+        .compare-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+
+        .clone-btn {
+            background: linear-gradient(135deg, #e65100, #ff8f00);
+            color: white;
+        }
+
+        .clone-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(230, 81, 0, 0.3);
+        }
+
+        .compare-btn {
+            background: linear-gradient(135deg, #00897b, #26a69a);
+            color: white;
+        }
+
+        .compare-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 137, 123, 0.3);
+        }
+
+        .clone-panel-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .clone-panel-overlay.active {
+            display: flex;
+        }
+
+        .clone-panel {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 32px;
+            max-width: 520px;
+            width: 90%;
+            box-shadow: var(--shadow-hover);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .clone-panel h3 {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, var(--primary-dark), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .clone-panel .form-group {
+            margin-bottom: 16px;
+        }
+
+        .clone-panel label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .clone-panel textarea,
+        .clone-panel input[type="text"] {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            background: var(--task-text-bg);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-family: inherit;
+            resize: vertical;
+            transition: var(--transition);
+        }
+
+        .clone-panel textarea:focus,
+        .clone-panel input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .clone-panel-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .clone-panel-actions .btn-cancel {
+            padding: 10px 20px;
+            border: 1px solid var(--glass-border);
+            background: var(--task-text-bg);
+            color: var(--text-secondary);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .clone-panel-actions .btn-cancel:hover {
+            background: var(--error-bg);
+            color: var(--error-text);
+        }
+
+        .clone-panel-actions .btn-submit {
+            padding: 10px 24px;
+            border: none;
+            background: linear-gradient(135deg, #e65100, #ff8f00);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .clone-panel-actions .btn-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(230, 81, 0, 0.3);
+        }
+
+        .clone-panel-actions .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            z-index: 200;
+            animation: toastIn 0.3s ease-out;
+            box-shadow: var(--shadow);
+        }
+
+        .toast.success {
+            background: var(--success-bg);
+            color: var(--success-text);
+            border: 1px solid var(--success-text);
+        }
+
+        .toast.error {
+            background: var(--error-bg);
+            color: var(--error-text);
+            border: 1px solid var(--error-text);
+        }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+    </style>
+</head>
+<body data-theme="light">
+    <div class="background-animation">
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+    </div>
+
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg>
+                </div>
+                <h1>任务队列</h1>
+            </div>
+            <p class="subtitle">查看和管理所有后台任务</p>
+            <div class="nav-bar">
+                <a href="/" class="nav-btn">🏠 返回首页</a>
+                <a href="/tasks.html" class="nav-btn active">📋 任务队列</a>
+                <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">🌙 暗黑模式</button>
+            </div>
+        </header>
+
+        <div class="card">
+            <div id="taskList">
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    <p>暂无任务</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="auto-refresh-indicator" id="refreshIndicator">
+            <span class="dot"></span> 有活跃任务时自动刷新
+        </div>
+    </div>
+
+    <button class="refresh-fab" onclick="manualRefresh()" title="手动刷新">🔄</button>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let autoRefreshTimer = null;
+        let hasActiveTasks = false;
+        const waveformAudioContexts = {};
+        const waveformAnimFrames = {};
+        const audioElements = {};
+
+        function initTheme() {
+            const saved = localStorage.getItem('qwen-tts-theme') || 'light';
+            document.body.setAttribute('data-theme', saved);
+            updateThemeButton(saved);
+        }
+
+        function toggleTheme() {
+            const current = document.body.getAttribute('data-theme');
+            const next = current === 'light' ? 'dark' : 'light';
+            document.body.setAttribute('data-theme', next);
+            localStorage.setItem('qwen-tts-theme', next);
+            updateThemeButton(next);
+        }
+
+        function updateThemeButton(theme) {
+            const btn = document.getElementById('themeToggle');
+            if (btn) btn.textContent = theme === 'light' ? '🌙 暗黑模式' : '☀️ 亮色模式';
+        }
+
+        initTheme();
+
+        const TYPE_MAP = {
+            'generate': '🎤 语音生成',
+            'clone': '🔊 声音克隆',
+            'design': '🎨 音色设计'
+        };
+
+        async function loadTasks() {
+            try {
+                const response = await fetch(`${API_BASE}/api/tasks`);
+                const result = await response.json();
+
+                if (result.success) {
+                    renderTasks(result.tasks);
+                    hasActiveTasks = result.tasks.some(t => t.status === 'running' || t.status === 'pending');
+                    updateAutoRefresh();
+                }
+            } catch (error) {
+                console.error('加载任务失败:', error);
+            }
+        }
+
+        function updateAutoRefresh() {
+            const indicator = document.getElementById('refreshIndicator');
+
+            if (hasActiveTasks) {
+                if (!autoRefreshTimer) {
+                    autoRefreshTimer = setInterval(loadTasks, 5000);
+                    indicator.innerHTML = '<span class="dot"></span> 检测到活跃任务，每 5 秒自动刷新';
+                }
+            } else {
+                if (autoRefreshTimer) {
+                    clearInterval(autoRefreshTimer);
+                    autoRefreshTimer = null;
+                    indicator.innerHTML = '<span class="dot" style="background:var(--text-secondary);animation:none;opacity:0.4"></span> 所有任务已完成';
+                }
+            }
+        }
+
+        function manualRefresh() {
+            const btn = document.querySelector('.refresh-fab');
+            btn.classList.add('spinning');
+            setTimeout(() => btn.classList.remove('spinning'), 800);
+            loadTasks();
+        }
+
+        function formatTime(seconds) {
+            if (!seconds || isNaN(seconds)) return '0:00';
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function drawWaveform(taskId, audioUrl) {
+            const canvas = document.getElementById(`wf-${taskId}`);
+            const progressLine = document.getElementById(`wfp-${taskId}`);
+            const timeLabel = document.getElementById(`wft-${taskId}`);
+            if (!canvas) return;
+
+            if (waveformAnimFrames[taskId]) {
+                cancelAnimationFrame(waveformAnimFrames[taskId]);
+            }
+
+            let actx = waveformAudioContexts[taskId];
+            if (!actx) {
+                actx = new (window.AudioContext || window.webkitAudioContext)();
+                waveformAudioContexts[taskId] = actx;
+            }
+            if (actx.state === 'suspended') actx.resume();
+
+            const containerEl = canvas.parentElement;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = containerEl.clientWidth * dpr;
+            canvas.height = containerEl.clientHeight * dpr;
+            ctx.scale(dpr, dpr);
+            const W = containerEl.clientWidth;
+            const H = containerEl.clientHeight;
+
+            fetch(audioUrl)
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    return r.arrayBuffer();
+                })
+                .then(buf => new Promise((resolve, reject) => {
+                    actx.decodeAudioData(buf, resolve, reject);
+                }))
+                .then(decoded => {
+                    const rawData = decoded.getChannelData(0);
+                    const samples = Math.min(200, Math.floor(W / 3));
+                    const blockSize = Math.floor(rawData.length / samples);
+                    const filteredData = [];
+                    for (let i = 0; i < samples; i++) {
+                        let sum = 0;
+                        for (let j = 0; j < blockSize; j++) {
+                            sum += Math.abs(rawData[i * blockSize + j]);
+                        }
+                        filteredData.push(sum / blockSize);
+                    }
+                    const max = Math.max(...filteredData);
+
+                    function render() {
+                        ctx.clearRect(0, 0, W, H);
+                        const barW = W / samples;
+                        const centerY = H / 2;
+                        const grad = ctx.createLinearGradient(0, 0, W, 0);
+                        grad.addColorStop(0, getComputedStyle(document.body).getPropertyValue('--primary').trim() || '#4e83fd');
+                        grad.addColorStop(1, getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#05a4b6');
+                        ctx.fillStyle = grad;
+
+                        for (let i = 0; i < samples; i++) {
+                            const v = filteredData[i] / (max || 1);
+                            const barH = Math.max(2, v * (H * 0.8));
+                            ctx.fillRect(i * barW, centerY - barH / 2, barW - 1, barH);
+                        }
+                    }
+
+                    render();
+
+                    const decodedDuration = decoded.duration;
+                    const audio = audioElements[taskId];
+                    if (!audio) return;
+
+                    function getAudioDuration() {
+                        return (isFinite(audio.duration) && audio.duration > 0) ? audio.duration : decodedDuration;
+                    }
+
+                    function updateProgress() {
+                        const dur = getAudioDuration();
+                        if (!audio.paused && dur) {
+                            const pct = audio.currentTime / dur;
+                            progressLine.style.left = (pct * 100) + '%';
+                            if (timeLabel) timeLabel.textContent = `${formatTime(audio.currentTime)} / ${formatTime(dur)}`;
+                        }
+                        waveformAnimFrames[taskId] = requestAnimationFrame(updateProgress);
+                    }
+
+                    const playIcon = document.getElementById(`play-${taskId}`);
+                    function updatePlayIcon() {
+                        if (playIcon) playIcon.textContent = audio.paused ? '▶' : '⏸';
+                    }
+
+                    audio.addEventListener('play', () => { updateProgress(); updatePlayIcon(); }, { once: false });
+                    audio.addEventListener('pause', () => {
+                        if (waveformAnimFrames[taskId]) cancelAnimationFrame(waveformAnimFrames[taskId]);
+                        updatePlayIcon();
+                    });
+                    audio.addEventListener('ended', () => {
+                        if (waveformAnimFrames[taskId]) cancelAnimationFrame(waveformAnimFrames[taskId]);
+                        progressLine.style.left = '0%';
+                        const dur = getAudioDuration();
+                        if (timeLabel) timeLabel.textContent = `0:00 / ${formatTime(dur)}`;
+                        updatePlayIcon();
+                    });
+
+                    const wfContainer = document.getElementById(`wfc-${taskId}`);
+                    if (wfContainer) {
+                        let dragging = false;
+                        let startX = 0;
+                        let justDragged = false;
+
+                        function getPercent(e) {
+                            const rect = wfContainer.getBoundingClientRect();
+                            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                            return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+                        }
+
+                        function stopAllOthers() {
+                            Object.values(audioElements).forEach(a => { if (!a.paused) { a.pause(); a.currentTime = 0; } });
+                            document.querySelectorAll('.waveform-play-icon').forEach(el => el.textContent = '▶');
+                        }
+
+                        wfContainer.addEventListener('click', (e) => {
+                            if (justDragged) { justDragged = false; return; }
+                            const dur = getAudioDuration();
+                            if (!dur) return;
+                            const pct = getPercent(e);
+                            audio.currentTime = pct * dur;
+                            if (audio.paused) {
+                                stopAllOthers();
+                                audio.play().catch(err => console.warn('[Waveform] play failed:', err));
+                            } else {
+                                audio.pause();
+                            }
+                        });
+
+                        wfContainer.addEventListener('mousedown', (e) => {
+                            dragging = true;
+                            startX = e.clientX;
+                        });
+
+                        wfContainer.addEventListener('touchstart', (e) => {
+                            dragging = true;
+                            startX = e.touches[0].clientX;
+                        }, { passive: true });
+
+                        document.addEventListener('mousemove', (e) => {
+                            if (!dragging) return;
+                            const pct = getPercent(e);
+                            progressLine.style.left = (pct * 100) + '%';
+                            const dur = getAudioDuration();
+                            if (timeLabel && dur) timeLabel.textContent = `${formatTime(pct * dur)} / ${formatTime(dur)}`;
+                        });
+
+                        document.addEventListener('touchmove', (e) => {
+                            if (!dragging) return;
+                            const pct = getPercent(e);
+                            progressLine.style.left = (pct * 100) + '%';
+                            const dur = getAudioDuration();
+                            if (timeLabel && dur) timeLabel.textContent = `${formatTime(pct * dur)} / ${formatTime(dur)}`;
+                        }, { passive: true });
+
+                        document.addEventListener('mouseup', (e) => {
+                            if (!dragging) return;
+                            dragging = false;
+                            const diff = Math.abs(e.clientX - startX);
+                            if (diff > 5) {
+                                justDragged = true;
+                                const dur = getAudioDuration();
+                                if (dur) {
+                                    audio.currentTime = getPercent(e) * dur;
+                                    if (!audio.paused) updateProgress();
+                                    if (timeLabel) timeLabel.textContent = `${formatTime(audio.currentTime)} / ${formatTime(dur)}`;
+                                }
+                            }
+                        });
+
+                        document.addEventListener('touchend', (e) => {
+                            if (!dragging) return;
+                            dragging = false;
+                            const touch = e.changedTouches[0];
+                            const diff = Math.abs(touch.clientX - startX);
+                            if (diff > 5) {
+                                justDragged = true;
+                                const dur = getAudioDuration();
+                                if (dur) {
+                                    const rect = wfContainer.getBoundingClientRect();
+                                    const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+                                    audio.currentTime = pct * dur;
+                                    if (!audio.paused) updateProgress();
+                                    if (timeLabel) timeLabel.textContent = `${formatTime(audio.currentTime)} / ${formatTime(dur)}`;
+                                }
+                            }
+                        });
+                    }
+                })
+                .catch((err) => {
+                    console.error(`[Waveform] ${taskId} 波形加载失败:`, err);
+                    ctx.clearRect(0, 0, W, H);
+                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text-tertiary').trim() || '#9e9e9e';
+                    ctx.font = '14px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('波形加载失败', W / 2, H / 2 + 5);
+                });
+        }
+
+        function playFromStart(taskId) {
+            const audio = audioElements[taskId];
+            if (!audio) return;
+            Object.values(audioElements).forEach(a => { if (!a.paused) { a.pause(); a.currentTime = 0; } });
+            document.querySelectorAll('.waveform-play-icon').forEach(el => el.textContent = '▶');
+            audio.currentTime = 0;
+            audio.play().catch(err => console.warn('[Play] play failed:', err));
+        }
+
+        function navigateToClone(task) {
+            const audioUrl = task.result?.audioUrl;
+            if (!audioUrl) return;
+
+            const refText = task.params?.text || '';
+            const language = task.params?.language || 'Chinese';
+            const params = new URLSearchParams({
+                tab: 'clone',
+                refAudio: audioUrl,
+                refText: refText,
+                language: language
+            });
+            window.location.href = `/?${params.toString()}`;
+        }
+
+        function addToCompare(task) {
+            const audioUrl = task.result?.audioUrl;
+            if (!audioUrl) return;
+            const compareList = JSON.parse(localStorage.getItem('qwen-tts-compare') || '[]');
+            const exists = compareList.some(c => c.url === audioUrl);
+            if (exists) {
+                showToast('该音频已在对比列表中', 'error');
+                return;
+            }
+            if (compareList.length >= 2) {
+                showToast('对比列表最多 2 个音频', 'error');
+                return;
+            }
+            compareList.push({
+                url: audioUrl,
+                text: (task.params?.text || '').substring(0, 30),
+                type: task.type,
+                taskId: task.id.substring(0, 8),
+                time: task.updatedAt
+            });
+            localStorage.setItem('qwen-tts-compare', JSON.stringify(compareList));
+            showToast(`已加入对比 (${compareList.length}/2)，前往首页查看`, 'success');
+        }
+
+        function showToast(message, type) {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3000);
+        }
+
+        function renderTasks(tasks) {
+            const taskList = document.getElementById('taskList');
+
+            if (tasks.length === 0) {
+                taskList.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        <p>暂无任务</p>
+                    </div>
+                `;
+                return;
+            }
+
+            tasks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            const completedWithResult = tasks.filter(t => t.status === 'completed' && t.result?.audioUrl);
+
+            taskList.innerHTML = tasks.map(task => {
+                const statusMap = {
+                    'pending': { text: '等待中', class: 'status-pending' },
+                    'running': { text: '运行中', class: 'status-running' },
+                    'completed': { text: '已完成', class: 'status-completed' },
+                    'failed': { text: '失败', class: 'status-failed' }
+                };
+
+                const status = statusMap[task.status] || { text: task.status, class: '' };
+                const isCompleted = task.status === 'completed';
+                const isRunning = task.status === 'running';
+                const isDesign = task.type === 'design';
+
+                const taskText = task.params?.text || '';
+                const displayText = taskText.length > 80 ? taskText.substring(0, 80) + '...' : taskText;
+
+                const shortId = task.id.substring(0, 8);
+
+                const instruct = task.params?.instruct || '';
+                const displayInstruct = instruct.length > 60 ? instruct.substring(0, 60) + '...' : instruct;
+
+                return `
+                    <div class="task-item">
+                        <div class="task-header">
+                            <div>
+                                <strong>${TYPE_MAP[task.type] || task.type}</strong>
+                                <span class="task-id">${shortId}</span>
+                            </div>
+                            <span class="task-status ${status.class}">${status.text}${isRunning ? ` ${task.progress}%` : ''}</span>
+                        </div>
+
+                        <div class="task-info">
+                            <div class="task-info-item">
+                                <div class="task-info-label">创建时间</div>
+                                <div>${new Date(task.createdAt).toLocaleString('zh-CN')}</div>
+                            </div>
+                            ${isRunning ? '' : `
+                            <div class="task-info-item">
+                                <div class="task-info-label">${isCompleted ? '完成时间' : '更新时间'}</div>
+                                <div>${new Date(task.updatedAt).toLocaleString('zh-CN')}</div>
+                            </div>
+                            `}
+                            ${task.params?.language ? `
+                            <div class="task-info-item">
+                                <div class="task-info-label">语言</div>
+                                <div>${task.params.language}</div>
+                            </div>
+                            ` : ''}
+                            ${isDesign && displayInstruct ? `
+                            <div class="task-info-item">
+                                <div class="task-info-label">音色描述</div>
+                                <div>${displayInstruct}</div>
+                            </div>
+                            ` : ''}
+                        </div>
+
+                        ${displayText ? `
+                            <div class="task-text">${displayText}</div>
+                        ` : ''}
+
+                        ${isRunning || task.status === 'pending' ? `
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${task.progress}%"></div>
+                            </div>
+                        ` : ''}
+
+                        ${task.error ? `
+                            <div class="task-error">${task.error.substring(0, 300)}</div>
+                        ` : ''}
+
+                        ${isCompleted && task.result ? `
+                            <div class="task-actions">
+                                <button class="action-btn" onclick="playFromStart('${task.id}')">▶ 播放</button>
+                                <a href="${task.result.audioUrl}" download class="action-btn">⬇️ 下载</a>
+                                ${isDesign ? `<button class="clone-btn" onclick='navigateToClone(${JSON.stringify(task).replace(/'/g, "&#39;")})'>🧬 一键克隆</button>` : ''}
+                                ${isDesign ? `<button class="compare-btn" onclick='addToCompare(${JSON.stringify(task).replace(/'/g, "&#39;")})'>📊 加入对比</button>` : ''}
+                            </div>
+                            <div class="task-player">
+                                <audio id="audio-${task.id}" preload="none" style="display:none">
+                                    <source src="${task.result.audioUrl}" type="audio/wav">
+                                </audio>
+                                <div class="waveform-container" id="wfc-${task.id}" title="点击播放/暂停 · 拖动跳转进度">
+                                    <canvas class="waveform-canvas" id="wf-${task.id}"></canvas>
+                                    <div class="waveform-progress-line" id="wfp-${task.id}"></div>
+                                    <span class="waveform-play-icon" id="play-${task.id}" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.4em;color:var(--primary);opacity:0.8;pointer-events:none;text-shadow:0 0 8px var(--primary);">▶</span>
+                                    <span class="waveform-time" id="wft-${task.id}"></span>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            completedWithResult.forEach(task => {
+                const audio = document.getElementById(`audio-${task.id}`);
+                if (audio) {
+                    audioElements[task.id] = audio;
+                    drawWaveform(task.id, task.result.audioUrl);
+                }
+            });
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && hasActiveTasks) {
+                loadTasks();
+            }
+        });
+
+        loadTasks();
+    </script>
+</body>
+</html>

@@ -1,0 +1,2942 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qwen3-TTS 语音合成系统</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        [data-theme="light"] {
+            --primary-light: #e1eaff;
+            --primary: #4e83fd;
+            --primary-dark: #3370ff;
+            --primary-darker: #245bdb;
+            --accent: #05a4b6;
+            --accent-light: #c2eff0;
+            --text-primary: #1f2329;
+            --text-secondary: #646a73;
+            --text-tertiary: #8f959e;
+            --bg-page: #f2f3f5;
+            --bg-gradient-start: #e8f0fe;
+            --bg-gradient-end: #d6e4ff;
+            --card-bg: rgba(255, 255, 255, 0.88);
+            --card-border: rgba(51, 112, 255, 0.08);
+            --glass-bg: rgba(255, 255, 255, 0.72);
+            --glass-border: rgba(51, 112, 255, 0.12);
+            --input-bg: rgba(255, 255, 255, 0.9);
+            --input-border: rgba(51, 112, 255, 0.15);
+            --surface-raised: rgba(255, 255, 255, 0.95);
+            --overlay-bg: rgba(255, 255, 255, 0.92);
+            --error-bg: rgba(245, 74, 69, 0.08);
+            --error-text: #d83931;
+            --success-bg: rgba(52, 199, 36, 0.08);
+            --success: #34c759;
+            --success-text: #2ea121;
+            --record: #ef4444;
+            --record-dark: #dc2626;
+            --record-shadow: rgba(239, 68, 68, 0.4);
+            --shadow-sm: 0 2px 8px rgba(51, 112, 255, 0.06);
+            --shadow: 0 8px 32px rgba(51, 112, 255, 0.1);
+            --shadow-hover: 0 16px 48px rgba(51, 112, 255, 0.18);
+            --shadow-glow: 0 0 24px rgba(51, 112, 255, 0.15);
+            --border-radius: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --bubble-opacity: 0.25;
+            --focus-glow: rgba(78, 131, 253, 0.1);
+            --focus-glow-strong: rgba(78, 131, 253, 0.18);
+            --ripple-color: rgba(255, 255, 255, 0.35);
+            --progress-inset: rgba(0, 0, 0, 0.06);
+            --shimmer-color: rgba(255, 255, 255, 0.35);
+            --accent-shadow: rgba(0, 188, 212, 0.3);
+        }
+
+        [data-theme="dark"] {
+            --primary-light: rgba(78, 131, 253, 0.15);
+            --primary: #4e83fd;
+            --primary-dark: #3370ff;
+            --primary-darker: #82a7fc;
+            --accent: #2cb8c5;
+            --accent-light: rgba(5, 164, 182, 0.15);
+            --text-primary: #f2f3f5;
+            --text-secondary: #a0a5ac;
+            --text-tertiary: #6b7179;
+            --bg-page: #1f2329;
+            --bg-gradient-start: #1a1e24;
+            --bg-gradient-end: #151920;
+            --card-bg: rgba(39, 46, 59, 0.85);
+            --card-border: rgba(78, 131, 253, 0.12);
+            --glass-bg: rgba(39, 46, 59, 0.7);
+            --glass-border: rgba(78, 131, 253, 0.15);
+            --input-bg: rgba(31, 35, 41, 0.9);
+            --input-border: rgba(78, 131, 253, 0.2);
+            --surface-raised: rgba(46, 53, 66, 0.9);
+            --overlay-bg: rgba(31, 35, 41, 0.95);
+            --error-bg: rgba(245, 74, 69, 0.12);
+            --error-text: #f98e8b;
+            --success-bg: rgba(52, 199, 36, 0.12);
+            --success: #34c759;
+            --success-text: #8ee085;
+            --record: #ef4444;
+            --record-dark: #dc2626;
+            --record-shadow: rgba(239, 68, 68, 0.4);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --shadow-hover: 0 16px 48px rgba(0, 0, 0, 0.4);
+            --shadow-glow: 0 0 24px rgba(78, 131, 253, 0.2);
+            --border-radius: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --bubble-opacity: 0.12;
+            --focus-glow: rgba(78, 131, 253, 0.15);
+            --focus-glow-strong: rgba(78, 131, 253, 0.22);
+            --ripple-color: rgba(255, 255, 255, 0.2);
+            --progress-inset: rgba(0, 0, 0, 0.15);
+            --shimmer-color: rgba(255, 255, 255, 0.15);
+            --accent-shadow: rgba(0, 188, 212, 0.25);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow-x: hidden;
+            transition: background 0.4s ease, color 0.4s ease;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--text-tertiary);
+            border-radius: 4px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--text-tertiary) transparent;
+        }
+
+        .background-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(78, 131, 253, var(--bubble-opacity)), rgba(5, 164, 182, var(--bubble-opacity)));
+            animation: float 15s infinite ease-in-out;
+        }
+
+        .bubble:nth-child(1) { width: 80px; height: 80px; left: 10%; animation-delay: 0s; }
+        .bubble:nth-child(2) { width: 120px; height: 120px; left: 20%; animation-delay: 2s; }
+        .bubble:nth-child(3) { width: 60px; height: 60px; left: 35%; animation-delay: 4s; }
+        .bubble:nth-child(4) { width: 100px; height: 100px; left: 50%; animation-delay: 1s; }
+        .bubble:nth-child(5) { width: 70px; height: 70px; left: 65%; animation-delay: 3s; }
+        .bubble:nth-child(6) { width: 90px; height: 90px; left: 80%; animation-delay: 5s; }
+        .bubble:nth-child(7) { width: 50px; height: 50px; left: 90%; animation-delay: 2.5s; }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+        }
+
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeSlideDown {
+            from { opacity: 0; transform: translateY(-16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.92); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 0 0 var(--primary-light); }
+            50% { box-shadow: 0 0 0 8px transparent; }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 100px 20px 40px;
+        }
+
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 12px 24px;
+            transition: var(--transition);
+            animation: fadeSlideDown 0.5s ease-out both;
+        }
+
+        .header-inner {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-sm);
+            flex-shrink: 0;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .logo-icon svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-dark), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            display: none;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .model-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--primary-light);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: var(--primary-dark);
+            font-weight: 500;
+        }
+
+        .theme-toggle {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 10px;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            font-size: 1.1rem;
+        }
+
+        .theme-toggle:hover {
+            background: var(--primary);
+            color: white;
+            transform: rotate(30deg);
+        }
+
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: var(--primary-light);
+            border-radius: 20px;
+            text-decoration: none;
+            color: var(--primary-dark);
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .nav-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 14px 28px;
+            border: 1px solid var(--card-border);
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            font-size: 1rem;
+            font-weight: 500;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: var(--shadow-sm);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            animation: fadeSlideUp 0.5s ease-out both;
+            position: relative;
+        }
+
+        .tab::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 50%;
+            width: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 2px;
+            transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1), left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tab.active::after {
+            width: 60%;
+            left: 20%;
+        }
+
+        .tab:nth-child(1) { animation-delay: 0.1s; }
+        .tab:nth-child(2) { animation-delay: 0.18s; }
+        .tab:nth-child(3) { animation-delay: 0.26s; }
+
+        .tab:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+            border-color: var(--primary);
+            color: var(--primary-dark);
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            border-color: transparent;
+            box-shadow: var(--shadow);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--border-radius);
+            padding: 32px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            transition: var(--transition);
+            animation: scaleIn 0.45s ease-out both;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-2px);
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-title svg {
+            width: 24px;
+            height: 24px;
+            fill: var(--primary);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        textarea, select, input[type="text"] {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid transparent;
+            background: linear-gradient(var(--card-bg), var(--card-bg)) padding-box,
+                        linear-gradient(135deg, var(--primary-light), var(--accent-light)) border-box;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: inherit;
+            color: var(--text-primary);
+            transition: var(--transition);
+        }
+
+        select {
+            appearance: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%23646a73'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            padding-right: 40px;
+        }
+
+        select:hover {
+            border-color: var(--primary);
+        }
+
+        textarea:focus, select:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light), 0 0 20px var(--focus-glow);
+            animation: focusBreath 2s ease-in-out infinite;
+        }
+
+        @keyframes focusBreath {
+            0%, 100% { box-shadow: 0 0 0 3px var(--primary-light), 0 0 20px var(--focus-glow); }
+            50% { box-shadow: 0 0 0 4px var(--primary-light), 0 0 28px var(--focus-glow-strong); }
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--primary);
+            border-radius: 12px;
+            padding: 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: linear-gradient(var(--primary-light), var(--accent-light));
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 0;
+        }
+
+        .upload-area > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .upload-area:hover::before {
+            opacity: 0.06;
+        }
+
+        .upload-area.dragover {
+            border-color: var(--accent);
+            border-style: solid;
+            transform: translateY(-3px) scale(1.01);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .upload-area.dragover::before {
+            opacity: 0.1;
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 16px;
+            fill: var(--primary);
+        }
+
+        .upload-text {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .upload-hint {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-top: 8px;
+            opacity: 0.8;
+        }
+
+        .audio-source-switcher {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .source-btn {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid var(--input-border);
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .source-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .source-btn.active {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, var(--primary-light), var(--accent-light));
+            color: var(--primary);
+        }
+
+        .record-area {
+            border: 2px dashed var(--input-border);
+            border-radius: 12px;
+            padding: 32px;
+            text-align: center;
+            transition: var(--transition);
+            background: var(--bg-secondary);
+        }
+
+        .record-area:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .record-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .record-btn {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .record-btn.start {
+            background: linear-gradient(135deg, var(--record), var(--record-dark));
+            box-shadow: 0 4px 15px var(--record-shadow);
+        }
+
+        .record-btn.start:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px var(--record-shadow);
+        }
+
+        .record-btn.stop {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            box-shadow: 0 4px 15px var(--shadow-glow);
+        }
+
+        .record-btn.stop:hover {
+            transform: scale(1.1);
+        }
+
+        .record-btn svg {
+            width: 28px;
+            height: 28px;
+            fill: white;
+        }
+
+        .record-timer {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .record-status {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+
+        .record-status.recording {
+            color: var(--record);
+            animation: pulse-text 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-text {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .recording-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--record);
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: pulse-dot 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.7; }
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px 32px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: var(--ripple-color);
+            transform: scale(0);
+            animation: rippleOut 0.6s ease-out;
+            pointer-events: none;
+        }
+
+        @keyframes rippleOut {
+            to { transform: scale(4); opacity: 0; }
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            box-shadow: var(--shadow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--overlay-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .loading-content {
+            text-align: center;
+            animation: loadingContentIn 0.5s ease-out both;
+        }
+
+        @keyframes loadingContentIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.9); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .loading-animation {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 24px;
+            position: relative;
+        }
+
+        .loading-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 3px solid transparent;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1.2s linear infinite;
+            filter: drop-shadow(0 0 6px var(--primary));
+        }
+
+        .loading-ring:nth-child(2) {
+            width: 78%;
+            height: 78%;
+            top: 11%;
+            left: 11%;
+            border-top-color: var(--accent);
+            animation-duration: 1s;
+            animation-direction: reverse;
+            filter: drop-shadow(0 0 6px var(--accent));
+        }
+
+        .loading-ring:nth-child(3) {
+            width: 56%;
+            height: 56%;
+            top: 22%;
+            left: 22%;
+            border-top-color: var(--primary-dark);
+            animation-duration: 0.8s;
+            filter: drop-shadow(0 0 6px var(--primary-dark));
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 36px;
+            height: 36px;
+            fill: var(--primary);
+            animation: loadingIconPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes loadingIconPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.7; }
+            50% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+        }
+
+        .loading-text {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .loading-text::after {
+            content: '';
+            animation: loadingDots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes loadingDots {
+            0% { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+        }
+
+        .loading-status {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            animation: loadingStatusFade 2s ease-in-out infinite;
+        }
+
+        @keyframes loadingStatusFade {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .loading-progress {
+            width: 200px;
+            height: 6px;
+            background: var(--primary-light);
+            border-radius: 3px;
+            margin: 0 auto;
+            overflow: hidden;
+            box-shadow: inset 0 1px 2px var(--progress-inset);
+        }
+
+        .loading-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.3s ease;
+            position: relative;
+            box-shadow: 0 0 8px var(--primary);
+        }
+
+        .loading-progress-bar::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, var(--shimmer-color), transparent);
+            animation: shimmer 1.5s ease-in-out infinite;
+        }
+
+        .audio-player {
+            display: none;
+            margin-top: 24px;
+            padding: 20px;
+            background: linear-gradient(var(--primary-light), var(--accent-light));
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .audio-player.active {
+            display: block;
+            animation: scaleIn 0.4s ease-out both;
+        }
+
+        audio {
+            width: 100%;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        .audio-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .audio-label {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .audio-duration {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        audio {
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error-message {
+            padding: 12px 16px;
+            background: var(--error-bg);
+            border: 1px solid transparent;
+            border-radius: 8px;
+            color: var(--error-text);
+            font-size: 0.95rem;
+            margin-top: 16px;
+            display: none;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .error-message.active {
+            display: block;
+            animation: messageSlideIn 0.35s ease-out both;
+        }
+
+        .success-message {
+            padding: 12px 16px;
+            background: var(--success-bg);
+            border: 1px solid transparent;
+            border-radius: 8px;
+            color: var(--success-text);
+            font-size: 0.95rem;
+            margin-top: 16px;
+            display: none;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .success-message.active {
+            display: block;
+            animation: messageSlideIn 0.35s ease-out both;
+        }
+
+        @keyframes messageSlideIn {
+            from { opacity: 0; transform: translateY(-8px) scaleY(0.95); }
+            to { opacity: 1; transform: translateY(0) scaleY(1); }
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 24px 0;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        footer p {
+            color: var(--text-tertiary);
+            font-size: 0.85rem;
+            font-weight: 500;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .model-badge {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .preset-speakers {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .speaker-chip {
+            padding: 10px 14px;
+            background: var(--primary-light);
+            border: 2px solid transparent;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: center;
+            user-select: none;
+        }
+
+        .speaker-chip:hover {
+            border-color: var(--primary);
+            transform: scale(1.03);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .speaker-chip:active {
+            transform: scale(0.96);
+            transition-duration: 0.1s;
+        }
+
+        .speaker-chip.selected {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            border-color: transparent;
+            box-shadow: var(--shadow);
+            animation: chipSelect 0.3s ease-out;
+        }
+
+        .ref-audio-preview {
+            margin-top: 16px;
+            padding: 16px;
+            background: linear-gradient(var(--accent-light), var(--primary-light));
+            border-radius: 12px;
+            display: none;
+        }
+
+        .ref-audio-preview.active {
+            display: block;
+            animation: scaleIn 0.35s ease-out both;
+        }
+
+        .remove-audio-btn {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: var(--error-bg);
+            color: var(--error-text);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            padding: 0;
+        }
+
+        .remove-audio-btn:hover {
+            background: var(--error-text);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .remove-audio-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .style-presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .style-chip {
+            padding: 8px 16px;
+            background: var(--primary-light);
+            border: 2px solid transparent;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-primary);
+            user-select: none;
+        }
+
+        .style-chip:hover {
+            border-color: var(--primary);
+            transform: scale(1.05);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .style-chip:active {
+            transform: scale(0.95);
+            transition-duration: 0.1s;
+        }
+
+        .style-chip.selected {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            border-color: transparent;
+            box-shadow: var(--shadow);
+            animation: chipSelect 0.3s ease-out;
+        }
+
+        @keyframes chipSelect {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.12); }
+            100% { transform: scale(1); }
+        }
+
+        .waveform-container {
+            position: relative;
+            width: 100%;
+            height: 80px;
+            margin-top: 12px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--card-bg);
+            border: 1px solid var(--input-border);
+        }
+
+        .waveform-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .waveform-progress-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 2px;
+            height: 100%;
+            background: var(--primary-dark);
+            pointer-events: none;
+            transition: left 0.05s linear;
+            box-shadow: 0 0 6px var(--primary);
+        }
+
+        .waveform-time {
+            position: absolute;
+            bottom: 4px;
+            right: 8px;
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+            pointer-events: none;
+        }
+
+        .player-action-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .play-action-btn {
+            padding: 8px 16px;
+            border: none;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .play-action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--accent-shadow);
+        }
+
+        .compare-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--primary);
+            background: transparent;
+            color: var(--primary-dark);
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .compare-btn:hover {
+            background: var(--primary-light);
+        }
+
+        .compare-btn.added {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .compare-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 2px solid var(--glass-border);
+            padding: 16px 24px;
+            z-index: 999;
+            display: none;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .compare-panel.visible {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            transform: translateY(0);
+        }
+
+        .compare-slot {
+            flex: 1;
+            max-width: 350px;
+            padding: 12px 16px;
+            background: var(--primary-light);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .compare-slot-label {
+            font-weight: 600;
+            color: var(--primary-dark);
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        .compare-slot audio {
+            flex: 1;
+            height: 36px;
+            min-width: 0;
+        }
+
+        .compare-slot-empty {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+
+        .compare-vs {
+            font-weight: 700;
+            color: var(--primary-dark);
+            font-size: 1.2rem;
+        }
+
+        .compare-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .compare-action-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .compare-play-btn {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .compare-play-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+
+        .compare-clear-btn {
+            background: var(--primary-light);
+            color: var(--text-secondary);
+        }
+
+        .compare-clear-btn:hover {
+            background: var(--error-bg);
+            color: var(--error-text);
+        }
+
+        .clone-link-btn {
+            width: 100%;
+            padding: 14px 24px;
+            margin-top: 16px;
+            border: 2px solid var(--accent);
+            background: linear-gradient(135deg, var(--accent-light), var(--primary-light));
+            color: var(--primary-dark);
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .clone-link-btn:hover {
+            background: linear-gradient(135deg, var(--accent), var(--primary));
+            color: white;
+            border-color: transparent;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px var(--accent-shadow);
+        }
+
+        .clone-link-btn.active {
+            display: flex;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 80px 12px 20px;
+            }
+
+            h1 {
+                font-size: 1rem;
+            }
+
+            .header-actions .model-info {
+                display: none;
+            }
+
+            .nav-btn span {
+                display: none;
+            }
+
+            .tabs {
+                gap: 8px;
+            }
+
+            .tab {
+                padding: 10px 18px;
+                font-size: 0.9rem;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .card-title {
+                font-size: 1.1rem;
+                margin-bottom: 18px;
+            }
+
+            .preset-speakers {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .compare-panel.visible {
+                flex-wrap: wrap;
+                padding: 12px 16px;
+                gap: 12px;
+            }
+
+            .compare-slot {
+                max-width: 100%;
+                min-width: 0;
+            }
+
+            .compare-vs {
+                display: none;
+            }
+
+            .record-btn {
+                width: 52px;
+                height: 52px;
+            }
+
+            .record-timer {
+                font-size: 1.2rem;
+            }
+
+            .upload-area {
+                padding: 24px 16px;
+            }
+
+            .record-area {
+                padding: 24px 16px;
+            }
+
+            .btn {
+                padding: 14px 24px;
+                font-size: 1rem;
+            }
+
+            .style-presets {
+                gap: 6px;
+            }
+
+            .style-chip {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+
+            .audio-source-switcher {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body data-theme="light">
+    <div class="background-animation">
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+    </div>
+
+    <!-- 调试工具入口已隐藏，需要时取消注释
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+        <a href="/debug.html" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); transition: all 0.3s;">
+            🔧 调试工具
+        </a>
+    </div>
+    -->
+
+    <div class="container">
+        <header>
+            <div class="header-inner">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg>
+                    </div>
+                    <h1>Qwen3-TTS</h1>
+                </div>
+                <div class="header-actions">
+                    <div class="model-info">
+                        <span class="model-badge"></span>
+                        <span>模型就绪</span>
+                    </div>
+                    <a href="/tasks.html" class="nav-btn">📋 任务</a>
+                    <button class="theme-toggle" id="theme-toggle" title="切换主题">🌙</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="generate">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="vertical-align: middle; margin-right: 6px;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+                语音生成
+            </button>
+            <button class="tab" data-tab="clone">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="vertical-align: middle; margin-right: 6px;"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                声音克隆
+            </button>
+            <button class="tab" data-tab="design">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="vertical-align: middle; margin-right: 6px;"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-1 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+                声音设计
+            </button>
+        </div>
+
+        <div id="generate-panel" class="card">
+            <h2 class="card-title">
+                <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+                文本转语音
+            </h2>
+
+            <div class="form-group">
+                <label for="generate-text">输入文本</label>
+                <textarea id="generate-text" placeholder="请输入要合成的文本内容...">你好，这是一段测试语音。我可以用不同的声音和语言来说话。</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="generate-language">语言</label>
+                <select id="generate-language">
+                    <option value="Chinese">中文</option>
+                    <option value="English">英语</option>
+                    <option value="Japanese">日语</option>
+                    <option value="Korean">韩语</option>
+                    <option value="German">德语</option>
+                    <option value="French">法语</option>
+                    <option value="Russian">俄语</option>
+                    <option value="Portuguese">葡萄牙语</option>
+                    <option value="Spanish">西班牙语</option>
+                    <option value="Italian">意大利语</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>选择音色</label>
+                <div class="preset-speakers" id="speaker-list">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="generate-instruct">指令（可选）</label>
+                <input type="text" id="generate-instruct" placeholder="例如：用开心的语气说，或点击下方预设">
+                <div class="style-presets" id="generate-style-presets"></div>
+            </div>
+
+            <button class="btn btn-primary" id="generate-btn">
+                <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+                生成语音
+            </button>
+
+            <div class="error-message" id="generate-error"></div>
+            <div class="success-message" id="generate-success"></div>
+
+            <div class="audio-player" id="generate-player">
+                <div class="audio-info">
+                    <span class="audio-label">生成的音频</span>
+                    <span class="audio-duration" id="generate-duration"></span>
+                </div>
+                <audio id="generate-audio" style="display:none"></audio>
+                <div class="waveform-container" id="generate-waveform-container">
+                    <canvas class="waveform-canvas" id="generate-waveform"></canvas>
+                    <div class="waveform-progress-line" id="generate-progress-line"></div>
+                    <span class="waveform-play-icon" id="generate-play-icon" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.4em;color:var(--primary);opacity:0.8;pointer-events:none;text-shadow:0 0 8px var(--primary);">▶</span>
+                    <span class="waveform-time" id="generate-time"></span>
+                </div>
+                <div class="player-action-row">
+                    <button class="play-action-btn" onclick="playFromStart('generate')">▶ 播放</button>
+                    <button class="compare-btn" id="generate-compare-btn" onclick="addToCompare('generate')">📊 加入对比</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="clone-panel" class="card hidden">
+            <h2 class="card-title">
+                <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                声音克隆
+            </h2>
+
+            <div class="form-group">
+                <label>参考音频</label>
+                <div class="audio-source-switcher">
+                    <button class="source-btn active" id="source-upload-btn" onclick="switchAudioSource('upload')">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+                        上传文件
+                    </button>
+                    <button class="source-btn" id="source-record-btn" onclick="switchAudioSource('record')">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg>
+                        直接录音
+                    </button>
+                </div>
+
+                <div id="upload-mode">
+                    <div class="upload-area" id="clone-upload-area">
+                        <svg class="upload-icon" viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+                        <p class="upload-text">点击或拖拽上传音频文件</p>
+                        <p class="upload-hint">支持 WAV, MP3, OGG, FLAC, M4A, WebM 格式</p>
+                        <input type="file" id="clone-audio-input" accept="audio/*" style="display: none;">
+                    </div>
+                </div>
+
+                <div id="record-mode" style="display: none;">
+                    <div class="record-area" id="record-area">
+                        <svg class="upload-icon" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg>
+                        <p class="upload-text">点击下方按钮开始录音</p>
+                        <p class="upload-hint">建议录制 3-10 秒清晰语音</p>
+                        <div class="record-timer" id="record-timer">00:00</div>
+                        <div class="record-status" id="record-status">准备就绪</div>
+                        <div class="record-controls">
+                            <button class="record-btn start" id="record-start-btn" onclick="startRecording()" title="开始录音">
+                                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>
+                            </button>
+                            <button class="record-btn stop" id="record-stop-btn" onclick="stopRecording()" style="display: none;" title="停止录音">
+                                <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ref-audio-preview" id="clone-preview">
+                <div class="audio-info">
+                    <span class="audio-label">参考音频</span>
+                    <span id="clone-file-name"></span>
+                    <button class="remove-audio-btn" onclick="removeCloneAudio()" title="删除音频">
+                        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    </button>
+                </div>
+                <audio id="clone-ref-audio" controls style="width: 100%;"></audio>
+            </div>
+
+            <div class="form-group">
+                <label for="clone-ref-text">参考音频文本</label>
+                <textarea id="clone-ref-text" placeholder="请输入参考音频对应的文本内容..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="clone-text">要合成的文本</label>
+                <textarea id="clone-text" placeholder="输入要克隆声音后合成的文本..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="clone-language">语言</label>
+                <select id="clone-language">
+                    <option value="Chinese">中文</option>
+                    <option value="English">英语</option>
+                    <option value="Japanese">日语</option>
+                    <option value="Korean">韩语</option>
+                    <option value="German">德语</option>
+                    <option value="French">法语</option>
+                    <option value="Russian">俄语</option>
+                    <option value="Portuguese">葡萄牙语</option>
+                    <option value="Spanish">西班牙语</option>
+                    <option value="Italian">意大利语</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="clone-instruct">风格指令（可选）</label>
+                <input type="text" id="clone-instruct" placeholder="例如：用温柔的语气说，或点击下方预设">
+                <div class="style-presets" id="clone-style-presets"></div>
+            </div>
+
+            <button class="btn btn-primary" id="clone-btn">
+                <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                克隆声音
+            </button>
+
+            <div class="error-message" id="clone-error"></div>
+            <div class="success-message" id="clone-success"></div>
+
+            <div class="audio-player" id="clone-player">
+                <div class="audio-info">
+                    <span class="audio-label">克隆后的音频</span>
+                    <span class="audio-duration" id="clone-duration"></span>
+                </div>
+                <audio id="clone-audio" style="display:none"></audio>
+                <div class="waveform-container" id="clone-waveform-container">
+                    <canvas class="waveform-canvas" id="clone-waveform"></canvas>
+                    <div class="waveform-progress-line" id="clone-progress-line"></div>
+                    <span class="waveform-play-icon" id="clone-play-icon" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.4em;color:var(--primary);opacity:0.8;pointer-events:none;text-shadow:0 0 8px var(--primary);">▶</span>
+                    <span class="waveform-time" id="clone-time"></span>
+                </div>
+                <div class="player-action-row">
+                    <button class="play-action-btn" onclick="playFromStart('clone')">▶ 播放</button>
+                    <button class="compare-btn" id="clone-compare-btn" onclick="addToCompare('clone')">📊 加入对比</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="design-panel" class="card hidden">
+            <h2 class="card-title">
+                <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-1 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+                声音设计
+            </h2>
+
+            <div class="form-group">
+                <label for="design-instruct">声音描述（必填）</label>
+                <input type="text" id="design-instruct" placeholder="描述你想要的声音特征，例如：年轻活泼的女声">
+                <div class="style-presets" id="design-voice-presets"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="design-text">试听文本</label>
+                <textarea id="design-text" placeholder="输入用于试听的文本...">你好，这是一段声音设计的试听文本。你可以用不同的声音描述来生成各种独特的音色。</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="design-language">语言</label>
+                <select id="design-language">
+                    <option value="Chinese">中文</option>
+                    <option value="English">英语</option>
+                    <option value="Japanese">日语</option>
+                    <option value="Korean">韩语</option>
+                    <option value="German">德语</option>
+                    <option value="French">法语</option>
+                    <option value="Russian">俄语</option>
+                    <option value="Portuguese">葡萄牙语</option>
+                    <option value="Spanish">西班牙语</option>
+                    <option value="Italian">意大利语</option>
+                </select>
+            </div>
+
+            <button class="btn btn-primary" id="design-btn">
+                <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-1 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+                设计声音
+            </button>
+
+            <div class="error-message" id="design-error"></div>
+            <div class="success-message" id="design-success"></div>
+
+            <div class="audio-player" id="design-player">
+                <div class="audio-info">
+                    <span class="audio-label">设计的声音</span>
+                    <span class="audio-duration" id="design-duration"></span>
+                </div>
+                <audio id="design-audio" style="display:none"></audio>
+                <div class="waveform-container" id="design-waveform-container">
+                    <canvas class="waveform-canvas" id="design-waveform"></canvas>
+                    <div class="waveform-progress-line" id="design-progress-line"></div>
+                    <span class="waveform-play-icon" id="design-play-icon" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.4em;color:var(--primary);opacity:0.8;pointer-events:none;text-shadow:0 0 8px var(--primary);">▶</span>
+                    <span class="waveform-time" id="design-time"></span>
+                </div>
+                <div class="player-action-row">
+                    <button class="play-action-btn" onclick="playFromStart('design')">▶ 播放</button>
+                    <button class="compare-btn" id="design-compare-btn" onclick="addToCompare('design')">📊 加入对比</button>
+                </div>
+                <button class="clone-link-btn" id="design-clone-link" onclick="cloneDesignVoice()">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                    一键克隆此声音 → 跳转到声音克隆
+                </button>
+            </div>
+        </div>
+
+        <footer>
+            <p>Powered by Qwen3-TTS</p>
+        </footer>
+    </div>
+
+    <div class="compare-panel" id="compare-panel">
+        <div class="compare-slot" id="compare-slot-a">
+            <span class="compare-slot-label">A</span>
+            <span class="compare-slot-empty">未选择</span>
+        </div>
+        <span class="compare-vs">VS</span>
+        <div class="compare-slot" id="compare-slot-b">
+            <span class="compare-slot-label">B</span>
+            <span class="compare-slot-empty">未选择</span>
+        </div>
+        <div class="compare-actions">
+            <button class="compare-action-btn compare-play-btn" onclick="playCompareBoth()">▶ 同时播放</button>
+            <button class="compare-action-btn compare-clear-btn" onclick="clearCompare()">✕ 清除</button>
+        </div>
+    </div>
+
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-animation">
+                <div class="loading-ring"></div>
+                <div class="loading-ring"></div>
+                <div class="loading-ring"></div>
+                <svg class="loading-icon" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg>
+            </div>
+            <div class="loading-text" id="loading-text">正在处理...</div>
+            <div class="loading-status" id="loading-status">初始化中</div>
+            <div class="loading-progress">
+                <div class="loading-progress-bar" id="loading-progress-bar"></div>
+            </div>
+            <p style="margin-top: 16px; color: var(--text-secondary); font-size: 0.9rem;">
+                任务在后台执行中，您可以关闭此页面
+            </p>
+            <a href="/tasks.html" style="display: inline-block; margin-top: 8px; color: var(--primary-dark); text-decoration: underline; font-size: 0.9rem;">
+                查看所有任务 →
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+
+        let selectedSpeaker = 'Vivian';
+        let uploadedAudioUrl = null;
+        let uploadedFileName = null;
+
+        const speakers = [
+            { id: 'Vivian', name: 'Vivian', lang: '中文', desc: '明亮活泼女声' },
+            { id: 'Serena', name: 'Serena', lang: '中文', desc: '温柔亲切女声' },
+            { id: 'Uncle_Fu', name: 'Uncle_Fu', lang: '中文', desc: '低沉沉稳男声' },
+            { id: 'Dylan', name: 'Dylan', lang: '中文', desc: '北京腔男声' },
+            { id: 'Eric', name: 'Eric', lang: '中文', desc: '四川话男声' },
+            { id: 'Ryan', name: 'Ryan', lang: 'English', desc: '活力节奏感男声' },
+            { id: 'Aiden', name: 'Aiden', lang: 'English', desc: '阳光美式男声' },
+            { id: 'Ono_Anna', name: 'Ono_Anna', lang: '日本語', desc: '俏皮日语女声' },
+            { id: 'Sohee', name: 'Sohee', lang: '한국어', desc: '温暖韩语女声' }
+        ];
+
+        const stylePresets = [
+            { label: '开心', value: '用非常开心愉悦的语气说' },
+            { label: '悲伤', value: '用悲伤低沉的语气说' },
+            { label: '愤怒', value: '用愤怒不满的语气说' },
+            { label: '温柔', value: '用温柔轻声的语气说' },
+            { label: '激动', value: '用激动兴奋的语气说' },
+            { label: '冷静', value: '用冷静理性的语气说' },
+            { label: '讲故事', value: '用讲故事的语气，抑扬顿挫' },
+            { label: '新闻', value: '用新闻播报的标准语气说' },
+        ];
+
+        const voiceDesignPresets = [
+            { label: '活泼少女', value: '一个年轻活泼的少女，声音明亮清脆' },
+            { label: '温柔姐姐', value: '一个温柔亲切的年轻女性，声音甜美柔和' },
+            { label: '磁性男声', value: '一个成熟的男性，声音低沉有磁性' },
+            { label: '阳光少年', value: '一个阳光开朗的少年，声音充满活力' },
+            { label: '知性女性', value: '一个优雅知性的女性，声音沉稳大方' },
+            { label: '浑厚大叔', value: '一个中年男性，声音浑厚有力' },
+            { label: '元气少女', value: '一个元气满满的少女，声音甜美元气' },
+            { label: '沉稳老者', value: '一个年长的老者，声音沧桑而有智慧' },
+        ];
+
+        function initStylePresets(containerId, inputId) {
+            const container = document.getElementById(containerId);
+            const input = document.getElementById(inputId);
+            if (!container || !input) return;
+
+            container.innerHTML = stylePresets.map(p =>
+                `<span class="style-chip" data-value="${p.value}">${p.label}</span>`
+            ).join('');
+
+            container.querySelectorAll('.style-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    const isSelected = chip.classList.contains('selected');
+                    container.querySelectorAll('.style-chip').forEach(c => c.classList.remove('selected'));
+                    if (isSelected) {
+                        input.value = '';
+                    } else {
+                        chip.classList.add('selected');
+                        input.value = chip.dataset.value;
+                    }
+                });
+            });
+
+            input.addEventListener('input', () => {
+                const matchingChip = [...container.querySelectorAll('.style-chip')].find(
+                    c => c.dataset.value === input.value
+                );
+                container.querySelectorAll('.style-chip').forEach(c => c.classList.remove('selected'));
+                if (matchingChip) matchingChip.classList.add('selected');
+            });
+        }
+
+        function initVoiceDesignPresets(containerId, inputId) {
+            const container = document.getElementById(containerId);
+            const input = document.getElementById(inputId);
+            if (!container || !input) return;
+
+            container.innerHTML = voiceDesignPresets.map(p =>
+                `<span class="style-chip" data-value="${p.value}">${p.label}</span>`
+            ).join('');
+
+            container.querySelectorAll('.style-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    const isSelected = chip.classList.contains('selected');
+                    container.querySelectorAll('.style-chip').forEach(c => c.classList.remove('selected'));
+                    if (isSelected) {
+                        input.value = '';
+                    } else {
+                        chip.classList.add('selected');
+                        input.value = chip.dataset.value;
+                    }
+                });
+            });
+
+            input.addEventListener('input', () => {
+                const matchingChip = [...container.querySelectorAll('.style-chip')].find(
+                    c => c.dataset.value === input.value
+                );
+                container.querySelectorAll('.style-chip').forEach(c => c.classList.remove('selected'));
+                if (matchingChip) matchingChip.classList.add('selected');
+            });
+        }
+
+        function initSpeakers() {
+            const container = document.getElementById('speaker-list');
+            container.innerHTML = speakers.map(s => `
+                <div class="speaker-chip ${s.id === selectedSpeaker ? 'selected' : ''}"
+                     data-speaker="${s.id}" title="${s.desc}">
+                    ${s.name}
+                </div>
+            `).join('');
+
+            container.querySelectorAll('.speaker-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    container.querySelectorAll('.speaker-chip').forEach(c => c.classList.remove('selected'));
+                    chip.classList.add('selected');
+                    selectedSpeaker = chip.dataset.speaker;
+                });
+            });
+        }
+
+        const waveformAudioContexts = {};
+        const waveformAnimFrames = {};
+
+        function formatTime(seconds) {
+            if (!seconds || isNaN(seconds)) return '0:00';
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function drawWaveform(type) {
+            const audio = document.getElementById(`${type}-audio`);
+            const canvas = document.getElementById(`${type}-waveform`);
+            const progressLine = document.getElementById(`${type}-progress-line`);
+            if (!audio || !audio.src || !canvas) return;
+
+            if (waveformAnimFrames[type]) {
+                cancelAnimationFrame(waveformAnimFrames[type]);
+            }
+
+            let actx = waveformAudioContexts[type];
+            if (!actx) {
+                actx = new (window.AudioContext || window.webkitAudioContext)();
+                waveformAudioContexts[type] = actx;
+            }
+
+            const containerEl = canvas.parentElement;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+
+            if (actx.state === 'suspended') actx.resume();
+            canvas.width = containerEl.clientWidth * dpr;
+            canvas.height = containerEl.clientHeight * dpr;
+            ctx.scale(dpr, dpr);
+            const W = containerEl.clientWidth;
+            const H = containerEl.clientHeight;
+
+            fetch(audio.src)
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    return r.arrayBuffer();
+                })
+                .then(buf => new Promise((resolve, reject) => {
+                    actx.decodeAudioData(buf, resolve, reject);
+                }))
+                .then(decoded => {
+                    const rawData = decoded.getChannelData(0);
+                    const samples = 200;
+                    const blockSize = Math.floor(rawData.length / samples);
+                    const filteredData = [];
+                    for (let i = 0; i < samples; i++) {
+                        let sum = 0;
+                        for (let j = 0; j < blockSize; j++) {
+                            sum += Math.abs(rawData[i * blockSize + j]);
+                        }
+                        filteredData.push(sum / blockSize);
+                    }
+                    const max = Math.max(...filteredData);
+
+                    function render() {
+                        ctx.clearRect(0, 0, W, H);
+                        const barW = W / samples;
+                        const centerY = H / 2;
+                        const grad = ctx.createLinearGradient(0, 0, W, 0);
+                        grad.addColorStop(0, getComputedStyle(document.body).getPropertyValue('--primary').trim() || '#4e83fd');
+                        grad.addColorStop(1, getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#05a4b6');
+                        ctx.fillStyle = grad;
+
+                        for (let i = 0; i < samples; i++) {
+                            const v = filteredData[i] / (max || 1);
+                            const barH = Math.max(2, v * (H * 0.8));
+                            ctx.fillRect(i * barW, centerY - barH / 2, barW - 1, barH);
+                        }
+                    }
+
+                    let decodedDuration = decoded.duration;
+
+                    render();
+
+                    const playIcon = document.getElementById(`${type}-play-icon`);
+                    const timeLabel = document.getElementById(`${type}-time`);
+
+                    function updateProgress() {
+                        const dur = getAudioDuration();
+                        if (!audio.paused && dur) {
+                            const pct = audio.currentTime / dur;
+                            progressLine.style.left = (pct * 100) + '%';
+                            if (timeLabel) timeLabel.textContent = `${formatTime(audio.currentTime)} / ${formatTime(dur)}`;
+                        }
+                        waveformAnimFrames[type] = requestAnimationFrame(updateProgress);
+                    }
+
+                    function updatePlayIcon() {
+                        if (playIcon) playIcon.textContent = audio.paused ? '▶' : '⏸';
+                    }
+
+                    audio.addEventListener('play', () => { updateProgress(); updatePlayIcon(); }, { once: false });
+                    audio.addEventListener('pause', () => {
+                        if (waveformAnimFrames[type]) cancelAnimationFrame(waveformAnimFrames[type]);
+                        updatePlayIcon();
+                    });
+                    audio.addEventListener('ended', () => {
+                        if (waveformAnimFrames[type]) cancelAnimationFrame(waveformAnimFrames[type]);
+                        progressLine.style.left = '0%';
+                        const dur = getAudioDuration();
+                        if (timeLabel) timeLabel.textContent = `0:00 / ${formatTime(dur)}`;
+                        updatePlayIcon();
+                    });
+
+                    function getAudioDuration() {
+                        return (isFinite(audio.duration) && audio.duration > 0) ? audio.duration : decodedDuration;
+                    }
+
+                    const wfContainer = canvas.parentElement;
+                    let dragging = false;
+                    let startX = 0;
+                    let justDragged = false;
+
+                    function getPercent(e) {
+                        const rect = wfContainer.getBoundingClientRect();
+                        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                        return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+                    }
+
+                    wfContainer.addEventListener('click', (e) => {
+                        if (justDragged) { justDragged = false; return; }
+                        const dur = getAudioDuration();
+                        if (!dur) return;
+                        const pct = getPercent(e);
+                        audio.currentTime = pct * dur;
+                        if (audio.paused) {
+                            audio.play().catch(err => console.warn('[Waveform] play failed:', err));
+                        } else {
+                            audio.pause();
+                        }
+                    });
+
+                    wfContainer.addEventListener('mousedown', (e) => {
+                        dragging = true;
+                        startX = e.clientX;
+                    });
+
+                    wfContainer.addEventListener('touchstart', (e) => {
+                        dragging = true;
+                        startX = e.touches[0].clientX;
+                    }, { passive: true });
+
+                    document.addEventListener('mousemove', (e) => {
+                        if (!dragging) return;
+                        const pct = getPercent(e);
+                        progressLine.style.left = (pct * 100) + '%';
+                        const dur = getAudioDuration();
+                        if (timeLabel && dur) timeLabel.textContent = `${formatTime(pct * dur)} / ${formatTime(dur)}`;
+                    });
+
+                    document.addEventListener('touchmove', (e) => {
+                        if (!dragging) return;
+                        const pct = getPercent(e);
+                        progressLine.style.left = (pct * 100) + '%';
+                        const dur = getAudioDuration();
+                        if (timeLabel && dur) timeLabel.textContent = `${formatTime(pct * dur)} / ${formatTime(dur)}`;
+                    }, { passive: true });
+
+                    document.addEventListener('mouseup', (e) => {
+                        if (!dragging) return;
+                        dragging = false;
+                        const diff = Math.abs(e.clientX - startX);
+                        if (diff > 5) {
+                            justDragged = true;
+                            const dur = getAudioDuration();
+                            if (dur) {
+                                audio.currentTime = getPercent(e) * dur;
+                                if (!audio.paused) updateProgress();
+                            }
+                        }
+                    });
+
+                    document.addEventListener('touchend', (e) => {
+                        if (!dragging) return;
+                        dragging = false;
+                        const touch = e.changedTouches[0];
+                        const diff = Math.abs(touch.clientX - startX);
+                        if (diff > 5) {
+                            justDragged = true;
+                            const dur = getAudioDuration();
+                            if (dur) {
+                                const rect = wfContainer.getBoundingClientRect();
+                                const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+                                audio.currentTime = pct * dur;
+                                if (!audio.paused) updateProgress();
+                            }
+                        }
+                    });
+                })
+                .catch((err) => {
+                    console.error(`[Waveform] ${type} 波形加载失败:`, err);
+                    console.error(`[Waveform] audio src: ${audio.src}, readyState: ${audio.readyState}, networkState: ${audio.networkState}`);
+                    ctx.clearRect(0, 0, W, H);
+                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text-tertiary').trim() || '#9e9e9e';
+                    ctx.font = '14px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('波形加载失败', W / 2, H / 2 + 5);
+                });
+        }
+
+        function initRipple() {
+            document.addEventListener('click', (e) => {
+                const btn = e.target.closest('.btn, .compare-play-btn');
+                if (!btn) return;
+                const circle = document.createElement('span');
+                circle.classList.add('ripple');
+                const rect = btn.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                circle.style.width = circle.style.height = size + 'px';
+                circle.style.left = (e.clientX - rect.left - size / 2) + 'px';
+                circle.style.top = (e.clientY - rect.top - size / 2) + 'px';
+                btn.appendChild(circle);
+                circle.addEventListener('animationend', () => circle.remove());
+            });
+        }
+
+        function initTheme() {
+            const toggle = document.getElementById('theme-toggle');
+            const saved = localStorage.getItem('qwen-tts-theme') || 'light';
+            document.body.setAttribute('data-theme', saved);
+            toggle.textContent = saved === 'dark' ? '☀️' : '🌙';
+
+            toggle.addEventListener('click', () => {
+                const current = document.body.getAttribute('data-theme');
+                const next = current === 'dark' ? 'light' : 'dark';
+                document.body.setAttribute('data-theme', next);
+                localStorage.setItem('qwen-tts-theme', next);
+                toggle.textContent = next === 'dark' ? '☀️' : '🌙';
+            });
+        }
+
+        function initTabs() {
+            const tabs = document.querySelectorAll('.tab');
+            const panels = {
+                generate: document.getElementById('generate-panel'),
+                clone: document.getElementById('clone-panel'),
+                design: document.getElementById('design-panel')
+            };
+
+            function showPanel(name) {
+                Object.entries(panels).forEach(([key, el]) => {
+                    if (key === name) {
+                        el.classList.remove('hidden');
+                        el.style.animation = 'none';
+                        el.offsetHeight;
+                        el.style.animation = '';
+                    } else {
+                        el.classList.add('hidden');
+                    }
+                });
+            }
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    showPanel(tab.dataset.tab);
+                });
+            });
+        }
+
+        const compareSlots = { a: null, b: null };
+        let compareAudioA = null;
+        let compareAudioB = null;
+        const COMPARE_KEY = 'qwen-tts-compare';
+
+        function syncCompareToStorage() {
+            const data = [];
+            if (compareSlots.a) data.push(compareSlots.a);
+            if (compareSlots.b) data.push(compareSlots.b);
+            try { localStorage.setItem(COMPARE_KEY, JSON.stringify(data)); } catch(e) {}
+        }
+
+        function loadCompareFromStorage() {
+            try {
+                const stored = JSON.parse(localStorage.getItem(COMPARE_KEY) || '[]');
+                if (stored.length > 0) {
+                    if (stored[0]) compareSlots.a = { src: stored[0].url || stored[0].src, label: stored[0].label || stored[0].text || '音频A' };
+                    if (stored[1]) compareSlots.b = { src: stored[1].url || stored[1].src, label: stored[1].label || stored[1].text || '音频B' };
+                    updateComparePanel();
+                    syncBtnStates();
+                }
+            } catch(e) {}
+        }
+
+        function syncBtnStates() {
+            document.querySelectorAll('.compare-btn').forEach(btn => {
+                btn.classList.remove('added');
+                btn.textContent = '📊 加入对比';
+            });
+            ['generate', 'clone', 'design'].forEach(type => {
+                const audio = document.getElementById(`${type}-audio`);
+                const btn = document.getElementById(`${type}-compare-btn`);
+                if (!audio || !audio.src || !btn) return;
+                if (compareSlots.a && compareSlots.a.src === audio.src) {
+                    btn.classList.add('added');
+                    btn.textContent = '✓ 已加入 A';
+                } else if (compareSlots.b && compareSlots.b.src === audio.src) {
+                    btn.classList.add('added');
+                    btn.textContent = '✓ 已加入 B';
+                }
+            });
+        }
+
+        function playFromStart(type) {
+            const audio = document.getElementById(`${type}-audio`);
+            if (!audio || !audio.src) return;
+            audio.currentTime = 0;
+            audio.play().catch(err => console.warn('[Play] play failed:', err));
+        }
+
+        function addToCompare(type) {
+            const audio = document.getElementById(`${type}-audio`);
+            if (!audio || !audio.src) return;
+
+            const btn = document.getElementById(`${type}-compare-btn`);
+            const labelMap = { generate: '语音生成', clone: '声音克隆', design: '声音设计' };
+            const label = labelMap[type] || type;
+
+            if (!compareSlots.a) {
+                compareSlots.a = { src: audio.src, label };
+                btn.classList.add('added');
+                btn.textContent = '✓ 已加入 A';
+            } else if (!compareSlots.b && compareSlots.a.src !== audio.src) {
+                compareSlots.b = { src: audio.src, label };
+                btn.classList.add('added');
+                btn.textContent = '✓ 已加入 B';
+            } else if (compareSlots.a && compareSlots.a.src === audio.src) {
+                compareSlots.a = compareSlots.b;
+                compareSlots.b = null;
+                btn.classList.remove('added');
+                btn.textContent = '📊 加入对比';
+            } else if (compareSlots.b && compareSlots.b.src === audio.src) {
+                compareSlots.b = null;
+                btn.classList.remove('added');
+                btn.textContent = '📊 加入对比';
+            } else {
+                compareSlots.a = { src: audio.src, label };
+                document.querySelectorAll('.compare-btn').forEach(b => {
+                    b.classList.remove('added');
+                    b.textContent = '📊 加入对比';
+                });
+                btn.classList.add('added');
+                btn.textContent = '✓ 已加入 A';
+                compareSlots.b = null;
+            }
+
+            syncCompareToStorage();
+            updateComparePanel();
+        }
+
+        function updateComparePanel() {
+            const panel = document.getElementById('compare-panel');
+            const slotA = document.getElementById('compare-slot-a');
+            const slotB = document.getElementById('compare-slot-b');
+
+            if (!compareSlots.a && !compareSlots.b) {
+                panel.classList.remove('visible');
+                return;
+            }
+
+            function renderSlot(el, data, slotKey) {
+                if (data) {
+                    el.innerHTML = `
+                        <span class="compare-slot-label">${slotKey}</span>
+                        <span style="font-size:0.8rem;color:var(--text-secondary);margin-right:4px;">${data.label || ''}</span>
+                        <audio controls style="height:36px;flex:1;min-width:0;"></audio>
+                    `;
+                    const aud = el.querySelector('audio');
+                    aud.src = data.src;
+                    if (slotKey === 'A') compareAudioA = aud;
+                    else compareAudioB = aud;
+                } else {
+                    el.innerHTML = `
+                        <span class="compare-slot-label">${slotKey}</span>
+                        <span class="compare-slot-empty">未选择</span>
+                    `;
+                }
+            }
+
+            renderSlot(slotA, compareSlots.a, 'A');
+            renderSlot(slotB, compareSlots.b, 'B');
+
+            panel.classList.add('visible');
+        }
+
+        function playCompareBoth() {
+            if (compareAudioA && compareAudioB) {
+                compareAudioA.currentTime = 0;
+                compareAudioB.currentTime = 0;
+                compareAudioA.play().catch(() => {});
+                compareAudioB.play().catch(() => {});
+            } else if (compareAudioA) {
+                compareAudioA.currentTime = 0;
+                compareAudioA.play().catch(() => {});
+            } else if (compareAudioB) {
+                compareAudioB.currentTime = 0;
+                compareAudioB.play().catch(() => {});
+            }
+        }
+
+        function clearCompare() {
+            compareSlots.a = null;
+            compareSlots.b = null;
+            compareAudioA = null;
+            compareAudioB = null;
+            document.querySelectorAll('.compare-btn').forEach(btn => {
+                btn.classList.remove('added');
+                btn.textContent = '📊 加入对比';
+            });
+            document.getElementById('compare-panel').classList.remove('visible');
+            try { localStorage.removeItem(COMPARE_KEY); } catch(e) {}
+        }
+
+        function initDesign() {
+            const btn = document.getElementById('design-btn');
+            const player = document.getElementById('design-player');
+            const cloneLinkBtn = document.getElementById('design-clone-link');
+
+            btn.addEventListener('click', async () => {
+                const instruct = document.getElementById('design-instruct').value.trim();
+                const text = document.getElementById('design-text').value.trim();
+                const language = document.getElementById('design-language').value;
+
+                if (!instruct) {
+                    showError('design-error', '请输入声音描述');
+                    return;
+                }
+
+                if (!text) {
+                    showError('design-error', '请输入试听文本');
+                    return;
+                }
+
+                player.classList.remove('active');
+                cloneLinkBtn.classList.remove('active');
+                showLoading('正在提交任务', '正在提交声音设计任务...');
+
+                try {
+                    const response = await fetch(`${API_BASE}/api/design-voice`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text, language, instruct })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        showSuccess('design-success', `任务已提交！ID: ${data.taskId.substring(0, 8)}...`);
+                        updateLoading('任务已入队，等待执行...', 5);
+                        startDesignPolling(data.taskId);
+                    } else {
+                        hideLoading();
+                        showError('design-error', data.error || '提交失败');
+                    }
+                } catch (err) {
+                    hideLoading();
+                    showError('design-error', '提交失败: ' + err.message);
+                }
+            });
+        }
+
+        let designPollingInterval = null;
+
+        function startDesignPolling(taskId) {
+            if (designPollingInterval) {
+                clearInterval(designPollingInterval);
+            }
+
+            const player = document.getElementById('design-player');
+            const audio = document.getElementById('design-audio');
+            const duration = document.getElementById('design-duration');
+            const cloneLinkBtn = document.getElementById('design-clone-link');
+
+            designPollingInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/api/tasks/${taskId}`);
+                    const data = await response.json();
+
+                    if (!data.success) {
+                        clearInterval(designPollingInterval);
+                        hideLoading();
+                        showError('design-error', '获取任务状态失败');
+                        return;
+                    }
+
+                    const task = data.task;
+                    updateLoading(
+                        task.status === 'running' ? '正在设计声音...' :
+                        task.status === 'pending' ? '等待中...' :
+                        task.status === 'completed' ? '已完成' : '处理中',
+                        task.progress
+                    );
+
+                    if (task.status === 'completed') {
+                        clearInterval(designPollingInterval);
+                        updateLoading('处理完成', 100);
+
+                        if (task.result && task.result.audioUrl) {
+                            audio.src = task.result.audioUrl;
+                            audio.onloadedmetadata = () => {
+                                const mins = Math.floor(audio.duration / 60);
+                                const secs = Math.floor(audio.duration % 60);
+                                duration.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                                drawWaveform('design');
+                            };
+                            player.classList.add('active');
+                            cloneLinkBtn.classList.add('active');
+                            showSuccess('design-success', '声音设计完成！点击下方按钮可一键克隆');
+                        }
+                        setTimeout(hideLoading, 800);
+                    } else if (task.status === 'failed') {
+                        clearInterval(designPollingInterval);
+                        hideLoading();
+                        showError('design-error', task.error || '任务失败');
+                    }
+                } catch (err) {
+                    console.error('轮询任务状态失败:', err);
+                }
+            }, 2000);
+        }
+
+        function cloneDesignVoice() {
+            const audio = document.getElementById('design-audio');
+            const instruct = document.getElementById('design-instruct').value.trim();
+            const designText = document.getElementById('design-text').value.trim();
+
+            if (!audio || !audio.src) {
+                showError('design-error', '没有可克隆的设计声音');
+                return;
+            }
+
+            uploadedAudioUrl = audio.src;
+            uploadedFileName = 'designed_voice.wav';
+
+            const refAudio = document.getElementById('clone-ref-audio');
+            const fileName = document.getElementById('clone-file-name');
+            const preview = document.getElementById('clone-preview');
+            refAudio.src = uploadedAudioUrl;
+            fileName.textContent = '声音设计输出';
+            preview.classList.add('active');
+
+            const refText = document.getElementById('clone-ref-text');
+            if (!refText.value.trim()) {
+                refText.value = designText;
+            }
+
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            tabs[1].classList.add('active');
+
+            document.getElementById('generate-panel').classList.add('hidden');
+            document.getElementById('design-panel').classList.add('hidden');
+            document.getElementById('clone-panel').classList.remove('hidden');
+
+            document.getElementById('clone-text').focus();
+            showSuccess('clone-success', '已导入声音设计结果，请输入要合成的文本后点击"克隆声音"');
+        }
+
+        function initUpload() {
+            const uploadArea = document.getElementById('clone-upload-area');
+            const fileInput = document.getElementById('clone-audio-input');
+            const preview = document.getElementById('clone-preview');
+            const refAudio = document.getElementById('clone-ref-audio');
+            const fileName = document.getElementById('clone-file-name');
+
+            uploadArea.addEventListener('click', () => fileInput.click());
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file) handleFileUpload(file);
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) handleFileUpload(file);
+            });
+
+            function handleFileUpload(file) {
+                const formData = new FormData();
+                formData.append('audio', file);
+
+                showLoading('正在上传音频', '上传文件中...');
+
+                fetch(`${API_BASE}/api/upload`, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        uploadedAudioUrl = data.fileUrl;
+                        uploadedFileName = data.filename;
+                        refAudio.src = uploadedAudioUrl;
+                        fileName.textContent = data.filename;
+                        preview.classList.add('active');
+                        hideLoading();
+                    } else {
+                        hideLoading();
+                        showError('clone-error', data.error || '上传失败');
+                    }
+                })
+                .catch(err => {
+                    hideLoading();
+                    showError('clone-error', '上传失败: ' + err.message);
+                });
+            }
+        }
+
+        function removeCloneAudio() {
+            const preview = document.getElementById('clone-preview');
+            const refAudio = document.getElementById('clone-ref-audio');
+            const fileInput = document.getElementById('clone-audio-input');
+            preview.classList.remove('active');
+            refAudio.src = '';
+            refAudio.pause();
+            fileInput.value = '';
+            uploadedAudioUrl = '';
+            uploadedFileName = '';
+        }
+
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordingTimer = null;
+        let recordingSeconds = 0;
+        let currentRecordingType = '';
+
+        function getSupportedMimeType() {
+            const types = [
+                'audio/webm;codecs=opus',
+                'audio/webm',
+                'audio/mp4',
+                'audio/aac',
+                'audio/ogg;codecs=opus',
+            ];
+            for (const type of types) {
+                if (MediaRecorder.isTypeSupported(type)) return type;
+            }
+            return '';
+        }
+
+        function switchAudioSource(mode) {
+            const uploadMode = document.getElementById('upload-mode');
+            const recordMode = document.getElementById('record-mode');
+            const uploadBtn = document.getElementById('source-upload-btn');
+            const recordBtn = document.getElementById('source-record-btn');
+
+            if (mode === 'upload') {
+                uploadMode.style.display = 'block';
+                recordMode.style.display = 'none';
+                uploadBtn.classList.add('active');
+                recordBtn.classList.remove('active');
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+            } else {
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    showError('clone-error', '录音功能需要 HTTPS 或 localhost 访问，当前使用的是 HTTP 协议');
+                    return;
+                }
+                uploadMode.style.display = 'none';
+                recordMode.style.display = 'block';
+                uploadBtn.classList.remove('active');
+                recordBtn.classList.add('active');
+            }
+        }
+
+        async function startRecording() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showError('clone-error', '当前浏览器不支持录音功能，请使用 Chrome、Safari 或 Edge 浏览器');
+                return;
+            }
+
+            const mimeType = getSupportedMimeType();
+            if (!mimeType) {
+                showError('clone-error', '当前浏览器不支持录音，请更新浏览器版本');
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 24000
+                    }
+                });
+                mediaRecorder = new MediaRecorder(stream, { mimeType });
+                currentRecordingType = mimeType.includes('mp4') || mimeType.includes('aac') ? 'audio/mp4' : 'audio/webm';
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) audioChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: currentRecordingType });
+                    stream.getTracks().forEach(t => t.stop());
+                    await uploadRecordedAudio(audioBlob);
+                };
+
+                mediaRecorder.start();
+                recordingSeconds = 0;
+                updateRecordTimer();
+                recordingTimer = setInterval(() => {
+                    recordingSeconds++;
+                    updateRecordTimer();
+                }, 1000);
+
+                document.getElementById('record-start-btn').style.display = 'none';
+                document.getElementById('record-stop-btn').style.display = 'flex';
+                const statusEl = document.getElementById('record-status');
+                statusEl.innerHTML = '<span class="recording-dot"></span>正在录音...';
+                statusEl.className = 'record-status recording';
+            } catch (err) {
+                let msg = '无法访问麦克风';
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    msg = '麦克风权限被拒绝，请在浏览器设置中允许麦克风访问';
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    msg = '未检测到麦克风设备';
+                } else if (err.name === 'NotReadableError') {
+                    msg = '麦克风被其他应用占用，请关闭其他使用麦克风的应用';
+                } else {
+                    msg = '无法访问麦克风: ' + err.message;
+                }
+                showError('clone-error', msg);
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+            clearInterval(recordingTimer);
+            document.getElementById('record-start-btn').style.display = 'flex';
+            document.getElementById('record-stop-btn').style.display = 'none';
+            const statusEl = document.getElementById('record-status');
+            statusEl.innerHTML = '录音完成，正在上传...';
+            statusEl.className = 'record-status';
+        }
+
+        function updateRecordTimer() {
+            const mins = Math.floor(recordingSeconds / 60).toString().padStart(2, '0');
+            const secs = (recordingSeconds % 60).toString().padStart(2, '0');
+            document.getElementById('record-timer').textContent = `${mins}:${secs}`;
+        }
+
+        async function uploadRecordedAudio(blob) {
+            const preview = document.getElementById('clone-preview');
+            const refAudio = document.getElementById('clone-ref-audio');
+            const fileName = document.getElementById('clone-file-name');
+
+            const formData = new FormData();
+            formData.append('audio', blob, 'recording.webm');
+
+            showLoading('正在上传录音', '上传中...');
+
+            try {
+                const res = await fetch(`${API_BASE}/api/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    uploadedAudioUrl = data.fileUrl;
+                    uploadedFileName = data.filename;
+                    refAudio.src = uploadedAudioUrl;
+                    fileName.textContent = '录音文件';
+                    preview.classList.add('active');
+                    hideLoading();
+                    const statusEl = document.getElementById('record-status');
+                    statusEl.innerHTML = '录音已上传，可以开始克隆';
+                    statusEl.className = 'record-status';
+                } else {
+                    hideLoading();
+                    showError('clone-error', data.error || '上传失败');
+                }
+            } catch (err) {
+                hideLoading();
+                showError('clone-error', '上传失败: ' + err.message);
+            }
+        }
+
+        function showLoading(text, status) {
+            const overlay = document.getElementById('loading-overlay');
+            const loadingText = document.getElementById('loading-text');
+            const loadingStatus = document.getElementById('loading-status');
+            const progressBar = document.getElementById('loading-progress-bar');
+
+            loadingText.textContent = text;
+            loadingStatus.textContent = status;
+            progressBar.style.width = '0%';
+            overlay.classList.add('active');
+        }
+
+        function updateLoading(status, progress) {
+            const loadingStatus = document.getElementById('loading-status');
+            const progressBar = document.getElementById('loading-progress-bar');
+            loadingStatus.textContent = status;
+            if (progress !== undefined) {
+                progressBar.style.width = progress + '%';
+            }
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('loading-overlay');
+            overlay.classList.remove('active');
+        }
+
+        function showError(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.classList.add('active');
+            setTimeout(() => element.classList.remove('active'), 5000);
+        }
+
+        function showSuccess(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.classList.add('active');
+            setTimeout(() => element.classList.remove('active'), 5000);
+        }
+
+        let currentPollingInterval = null;
+
+        function startPollingTask(taskId, type) {
+            if (currentPollingInterval) {
+                clearInterval(currentPollingInterval);
+            }
+
+            const player = document.getElementById(`${type}-player`);
+            const audio = document.getElementById(`${type}-audio`);
+            const duration = document.getElementById(`${type}-duration`);
+
+            currentPollingInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/api/tasks/${taskId}`);
+                    const data = await response.json();
+
+                    if (!data.success) {
+                        clearInterval(currentPollingInterval);
+                        hideLoading();
+                        showError(`${type}-error`, '获取任务状态失败');
+                        return;
+                    }
+
+                    const task = data.task;
+                    updateLoading(
+                        task.status === 'running' ? '正在生成中...' : 
+                        task.status === 'pending' ? '等待中...' : 
+                        task.status === 'completed' ? '已完成' : '处理中',
+                        task.progress
+                    );
+
+                    if (task.status === 'completed') {
+                        clearInterval(currentPollingInterval);
+                        updateLoading('处理完成', 100);
+
+                        if (task.result && task.result.audioUrl) {
+                            audio.src = task.result.audioUrl;
+                            audio.onloadedmetadata = () => {
+                                const mins = Math.floor(audio.duration / 60);
+                                const secs = Math.floor(audio.duration % 60);
+                                duration.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                                drawWaveform(type);
+                            };
+                            player.classList.add('active');
+                            showSuccess(`${type}-success`, '任务完成！音频已生成');
+                        }
+                        setTimeout(hideLoading, 800);
+                    } else if (task.status === 'failed') {
+                        clearInterval(currentPollingInterval);
+                        hideLoading();
+                        showError(`${type}-error`, task.error || '任务失败');
+                    }
+                } catch (err) {
+                    console.error('轮询任务状态失败:', err);
+                }
+            }, 2000);
+        }
+
+        function initGenerate() {
+            const btn = document.getElementById('generate-btn');
+            const player = document.getElementById('generate-player');
+
+            btn.addEventListener('click', async () => {
+                const text = document.getElementById('generate-text').value.trim();
+                const language = document.getElementById('generate-language').value;
+                const instruct = document.getElementById('generate-instruct').value.trim();
+
+                if (!text) {
+                    showError('generate-error', '请输入要合成的文本');
+                    return;
+                }
+
+                player.classList.remove('active');
+                showLoading('正在提交任务', '正在提交生成任务...');
+
+                try {
+                    const response = await fetch(`${API_BASE}/api/generate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            text,
+                            language,
+                            speaker: selectedSpeaker,
+                            instruct: instruct || undefined
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        showSuccess('generate-success', `任务已提交！ID: ${data.taskId.substring(0, 8)}...`);
+                        updateLoading('任务已入队，等待执行...', 5);
+                        startPollingTask(data.taskId, 'generate');
+                    } else {
+                        hideLoading();
+                        showError('generate-error', data.error || '提交失败');
+                    }
+                } catch (err) {
+                    hideLoading();
+                    showError('generate-error', '提交失败: ' + err.message);
+                }
+            });
+        }
+
+        function initClone() {
+            const btn = document.getElementById('clone-btn');
+            const player = document.getElementById('clone-player');
+
+            btn.addEventListener('click', async () => {
+                const text = document.getElementById('clone-text').value.trim();
+                const refText = document.getElementById('clone-ref-text').value.trim();
+                const language = document.getElementById('clone-language').value;
+                const instruct = document.getElementById('clone-instruct') ? document.getElementById('clone-instruct').value.trim() : '';
+
+                if (!uploadedAudioUrl) {
+                    showError('clone-error', '请先上传参考音频');
+                    return;
+                }
+
+                if (!refText) {
+                    showError('clone-error', '请输入参考音频对应的文本');
+                    return;
+                }
+
+                if (!text) {
+                    showError('clone-error', '请输入要合成的文本');
+                    return;
+                }
+
+                player.classList.remove('active');
+                showLoading('正在提交任务', '正在提交克隆任务...');
+
+                try {
+                    const response = await fetch(`${API_BASE}/api/clone`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            text,
+                            language,
+                            refAudioUrl: uploadedAudioUrl,
+                            refText,
+                            instruct: instruct || undefined
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        showSuccess('clone-success', `任务已提交！ID: ${data.taskId.substring(0, 8)}...`);
+                        updateLoading('任务已入队，等待执行...', 5);
+                        startPollingTask(data.taskId, 'clone');
+                    } else {
+                        hideLoading();
+                        showError('clone-error', data.error || '提交失败');
+                    }
+                } catch (err) {
+                    hideLoading();
+                    showError('clone-error', '提交失败: ' + err.message);
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            initRipple();
+            initSpeakers();
+            initStylePresets('generate-style-presets', 'generate-instruct');
+            initStylePresets('clone-style-presets', 'clone-instruct');
+            initVoiceDesignPresets('design-voice-presets', 'design-instruct');
+            initTabs();
+            initUpload();
+            initGenerate();
+            initClone();
+            initDesign();
+            loadCompareFromStorage();
+            handleUrlParams();
+        });
+
+        function handleUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('tab') !== 'clone') return;
+
+            document.querySelector('[data-tab="clone"]')?.click();
+
+            const refAudio = params.get('refAudio');
+            const refText = params.get('refText');
+            const text = params.get('text');
+            const language = params.get('language');
+
+            if (refAudio) {
+                const cloneAudio = document.getElementById('clone-audio');
+                if (cloneAudio) {
+                    cloneAudio.src = refAudio;
+                    cloneAudio.closest('.audio-player')?.classList.add('show');
+                }
+            }
+            if (refText) {
+                const refTextInput = document.getElementById('clone-ref-text');
+                if (refTextInput) refTextInput.value = refText;
+            }
+            if (text) {
+                const textInput = document.getElementById('clone-text');
+                if (textInput) textInput.value = text;
+            }
+            if (language) {
+                const langInput = document.getElementById('clone-language');
+                if (langInput) langInput.value = language;
+            }
+
+            window.history.replaceState({}, '', '/');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+# ============ 模型文件 ============
+qwen3-tts-base-model/
+qwen3-tts-model/
+qwen3-tts-tokenizer/
+*.safetensors
+
+# ============ 音频 / 视频文件 ============
+*.wav
+*.mp3
+*.m4a
+*.webm
+*.ogg
+*.flac
+
+# ============ Node.js ============
+node_modules/
+
+# ============ Python ============
+__pycache__/
+*.pyc
+*.pyo
+.cache/
+*.egg-info/
+
+# ============ 运行时数据 ============
+webui/keys/
+webui/certs/
+webui/tasks/
+webui/uploads/
+webui/output/
+webui/tests/
+webui/tasks.json
+webui/config_temp_*.json
+
+# ============ 测试和调试文件 ============
+webui/test_*.js
+webui/test_*.py
+webui/test_*.bat
+webui/debug-test-*
+webui/generate-*.json
+webui/test-*.json
+debug-*.json
+debug*.html
+
+# ============ 备份和压缩包 ============
+*.backup_*
+*.zip
+webui/public/*.backup_*
+
+# ============ 内部规划文档 ============
+webui/plan-p9b.md
+webui/ROLE.md
+
+# ============ 参考文件 ============
+webui/参考/
+webui/samples/
+
+# ============ 系统文件 ============
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# ============ IDE ============
+.vscode/
+.idea/
+*.code-workspace
+
+# ============ 环境 ============
+.env
+.env.local
+*.log
