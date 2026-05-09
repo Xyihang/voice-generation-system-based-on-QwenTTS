@@ -158,6 +158,44 @@ class TaskQueue {
         return removed;
     }
 
+    // 删除指定任务（包括 JSON 和输出文件）
+    deleteTask(taskId) {
+        const task = this.tasks.get(taskId);
+        if (!task) {
+            return { success: false, error: '任务不存在' };
+        }
+
+        if (task.status === 'running') {
+            return { success: false, error: '无法删除正在运行的任务' };
+        }
+
+        const outputDir = path.join(__dirname, '..', 'output');
+        const wavFile = path.join(outputDir, `${taskId}.wav`);
+        const txtFile = path.join(outputDir, `${taskId}.txt`);
+
+        if (fs.existsSync(wavFile)) {
+            try { fs.unlinkSync(wavFile); } catch (e) {
+                console.error(`[TaskQueue] 删除音频文件失败：${wavFile}`, e);
+            }
+        }
+        if (fs.existsSync(txtFile)) {
+            try { fs.unlinkSync(txtFile); } catch (e) {
+                console.error(`[TaskQueue] 删除文本文件失败：${txtFile}`, e);
+            }
+        }
+
+        const taskFile = path.join(this.taskDir, `${taskId}.json`);
+        if (fs.existsSync(taskFile)) {
+            try { fs.unlinkSync(taskFile); } catch (e) {
+                console.error(`[TaskQueue] 删除任务文件失败：${taskFile}`, e);
+            }
+        }
+
+        this.tasks.delete(taskId);
+        console.log(`[TaskQueue] 已删除任务：${taskId} (${task.type})`);
+        return { success: true };
+    }
+
     // 清理旧任务（保留最近 100 个）
     cleanup(maxTasks = 100) {
         const allTasks = this.getAllTasks();

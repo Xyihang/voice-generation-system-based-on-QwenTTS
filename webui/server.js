@@ -303,6 +303,19 @@ app.get('/api/tasks/:id', (req, res) => {
     res.json({ success: true, task });
 });
 
+app.delete('/api/tasks/:id', (req, res) => {
+    const queue = taskQueue.getInstance();
+    const result = queue.deleteTask(req.params.id);
+
+    if (!result.success) {
+        const code = result.error === '任务不存在' ? 404 : 400;
+        return res.status(code).json(result);
+    }
+
+    console.log(`[API] 任务已删除：${req.params.id}`);
+    res.json(result);
+});
+
 // Debug endpoint for testing TTS with full control
 app.post('/api/debug', upload.single('refAudio'), async (req, res) => {
     const { 

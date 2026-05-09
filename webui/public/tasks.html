@@ -796,6 +796,126 @@
             from { opacity: 0; transform: translateX(40px); }
             to { opacity: 1; transform: translateX(0); }
         }
+
+        .delete-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--error-text);
+            background: var(--error-bg);
+            color: var(--error-text);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-weight: 500;
+            transition: var(--transition);
+            font-family: inherit;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .delete-btn:hover {
+            background: var(--error-text);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(245, 74, 69, 0.3);
+        }
+
+        .delete-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .confirm-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .confirm-dialog {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+            padding: 28px 32px;
+            max-width: 420px;
+            width: 90%;
+            box-shadow: var(--shadow-hover);
+            animation: scaleIn 0.2s ease-out;
+        }
+
+        .confirm-dialog h3 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+
+        .confirm-dialog p {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .confirm-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .confirm-cancel {
+            padding: 8px 20px;
+            border: 1px solid var(--glass-border);
+            background: var(--surface-raised);
+            color: var(--text-primary);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.88rem;
+            font-weight: 500;
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        .confirm-cancel:hover {
+            background: var(--task-item-bg);
+        }
+
+        .confirm-ok {
+            padding: 8px 20px;
+            border: none;
+            background: var(--error-text);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.88rem;
+            font-weight: 600;
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        .confirm-ok:hover {
+            opacity: 0.85;
+            transform: translateY(-1px);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.92); }
+            to { opacity: 1; transform: scale(1); }
+        }
     </style>
 </head>
 <body data-theme="light">
@@ -1230,7 +1350,10 @@
                                 <strong>${TYPE_MAP[task.type] || task.type}</strong>
                                 <span class="task-id">${shortId}</span>
                             </div>
-                            <span class="task-status ${status.class}">${status.text}${isRunning ? ` ${task.progress}%` : ''}</span>
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                <span class="task-status ${status.class}">${status.text}${isRunning ? ` ${task.progress}%` : ''}</span>
+                                <button class="delete-btn" ${isRunning ? 'disabled' : ''} onclick="event.stopPropagation();showConfirmModal('${task.id}','${TYPE_MAP[task.type] || task.type}','${shortId}')" title="${isRunning ? '任务运行中，无法删除' : '删除此任务'}">✕</button>
+                            </div>
                         </div>
 
                         <div class="task-info">
@@ -1371,6 +1494,92 @@
                 language: langMap[language] || language || 'Chinese'
             });
             window.location.href = `/?${params.toString()}`;
+        }
+
+        function showConfirmModal(taskId, taskType, shortId) {
+            const existing = document.getElementById('confirm-modal');
+            if (existing) existing.remove();
+
+            const overlay = document.createElement('div');
+            overlay.id = 'confirm-modal';
+            overlay.className = 'confirm-overlay';
+            overlay.innerHTML = `
+                <div class="confirm-dialog">
+                    <h3>确认删除</h3>
+                    <p>确定要删除任务 <strong>${taskType} #${shortId}</strong> 吗？<br>此操作不可撤销，关联的输出文件也将被一并删除。</p>
+                    <div class="confirm-actions">
+                        <button class="confirm-cancel" onclick="closeConfirmModal()">取消</button>
+                        <button class="confirm-ok" id="confirm-ok-btn" onclick="deleteTask('${taskId}')">确认删除</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) closeConfirmModal();
+            });
+        }
+
+        function closeConfirmModal() {
+            const modal = document.getElementById('confirm-modal');
+            if (modal) {
+                modal.style.opacity = '0';
+                setTimeout(() => modal.remove(), 200);
+            }
+        }
+
+        async function deleteTask(taskId) {
+            const okBtn = document.getElementById('confirm-ok-btn');
+            if (okBtn) {
+                okBtn.disabled = true;
+                okBtn.textContent = '删除中...';
+            }
+
+            try {
+                const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+                const data = await res.json();
+
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || '删除失败');
+                }
+
+                closeConfirmModal();
+                showToast('任务已删除', 'success');
+
+                const taskEl = document.querySelector(`.task-item:has(.delete-btn[onclick*="${taskId}"])`);
+                if (taskEl) {
+                    taskEl.style.transition = 'all 0.3s ease';
+                    taskEl.style.opacity = '0';
+                    taskEl.style.transform = 'translateX(30px)';
+                    taskEl.style.maxHeight = taskEl.offsetHeight + 'px';
+                    setTimeout(() => {
+                        taskEl.style.maxHeight = '0';
+                        taskEl.style.padding = '0';
+                        taskEl.style.margin = '0';
+                        taskEl.style.overflow = 'hidden';
+                    }, 200);
+                    setTimeout(() => {
+                        taskEl.remove();
+                        if (!document.querySelector('.task-item')) {
+                            document.getElementById('taskList').innerHTML = `
+                                <div class="empty-state">
+                                    <div class="empty-icon">📋</div>
+                                    <h3>暂无任务</h3>
+                                    <p>在主页生成语音后，任务会显示在这里</p>
+                                    <a href="/" class="back-btn">← 返回主页</a>
+                                </div>
+                            `;
+                        }
+                    }, 500);
+                } else {
+                    loadTasks();
+                }
+            } catch (err) {
+                if (okBtn) {
+                    okBtn.disabled = false;
+                    okBtn.textContent = '确认删除';
+                }
+                showToast(err.message || '删除失败，请重试', 'error');
+            }
         }
 
         loadTasks();

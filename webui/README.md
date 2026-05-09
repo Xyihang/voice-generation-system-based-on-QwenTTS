@@ -40,7 +40,7 @@ Qwen3-TTS WebUI 是一个基于 [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS)
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/<your-username>/QwenTTS.git
+git clone https://github.com/Xyihang/voice-generation-system-based-on-QwenTTS.git
 cd QwenTTS/webui
 ```
 
@@ -119,10 +119,39 @@ QwenTTS/
     ├── package.json
     ├── public/
     ├── scripts/
-    └── utils/
+    ├── utils/
+    └── whisper_models/            # Whisper 模型（音频转文字功能）
+        └── large-v3-turbo.pt
 ```
 
-### 4. 修改模型路径
+### 4. 下载 Whisper 模型（音频转文字功能）
+
+如需使用「音频转文字」功能，需要下载 Whisper large-v3-turbo 模型。
+
+模型存放路径：`webui/whisper_models/large-v3-turbo.pt`
+
+首次使用「音频转文字」功能时，系统会自动从 Hugging Face 下载模型。也可以手动下载：
+
+```bash
+# 方式一：Hugging Face（需要能访问 HF）
+pip install huggingface_hub
+python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='openai/whisper-large-v3-turbo', filename='model.safetensors', local_dir='./webui/whisper_models')"
+
+# 方式二：国内镜像
+set HF_ENDPOINT=https://hf-mirror.com
+pip install huggingface_hub
+python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='openai/whisper-large-v3-turbo', filename='model.safetensors', local_dir='./webui/whisper_models')"
+```
+
+系统会自动将 `.safetensors` 格式转换为 `.pt` 格式，首次下载+转换约需 5-10 分钟。
+
+> **Whisper 模型需要额外安装 Python 包：**
+> ```bash
+> conda activate qwen3-tts
+> pip install openai-whisper
+> ```
+
+### 5. 修改模型路径
 
 打开 `webui/server.js`，找到以下两行，修改为你的实际模型路径：
 
@@ -137,7 +166,7 @@ const VOICE_DESIGN_MODEL_PATH = 'D:/your/path/to/qwen3-tts-model/Qwen3-TTS-12Hz-
 - `webui/scripts/clone_voice.py` → `DEFAULT_MODEL_PATH`
 - `webui/scripts/design_voice.py` → `DEFAULT_MODEL_PATH`
 
-### 5. 修改 Python 路径
+### 6. 修改 Python 路径
 
 打开 `webui/utils/taskExecutor.js` 和 `webui/server.js`，找到 `CONDA_PYTHON` 变量，修改为你的 Conda 环境 Python 路径：
 
@@ -145,14 +174,14 @@ const VOICE_DESIGN_MODEL_PATH = 'D:/your/path/to/qwen3-tts-model/Qwen3-TTS-12Hz-
 const CONDA_PYTHON = 'C:/Users/<你的用户名>/miniconda3/envs/qwen3-tts/python.exe';
 ```
 
-### 6. 安装 Node.js 依赖
+### 7. 安装 Node.js 依赖
 
 ```bash
 cd webui
 npm install
 ```
 
-### 7. 启动
+### 8. 启动
 
 ```bash
 npm start
@@ -188,6 +217,7 @@ webui/
 │   ├── generate_voice.py     # 语音生成
 │   ├── clone_voice.py        # 声音克隆
 │   ├── design_voice.py       # 音色设计
+│   ├── transcribe.py         # 音频转文字（Whisper）
 │   └── debug_tts.py          # 调试工具
 │
 ├── utils/                    # Node.js 工具模块
@@ -225,6 +255,17 @@ AI 会根据描述自动生成对应的音色，并支持一键克隆到声音�
 
 支持 instruct 模式精细控制音色风格。
 
+### 📝 音频转文字
+
+上传音频文件 → 选择语言 → Whisper turbo 模型转录 → 显示文本结果
+
+支持 10 种语言：中文、英文、日文、韩文、德语、法语、俄语、葡萄牙语、西班牙语、意大利语
+
+转录完成后支持：
+- 一键复制文本
+- 下载 `.txt` 文件
+- **一键导入克隆** — 将音频和转录文本直接导入声音克隆页面，省去手动操作
+
 ### 📊 A/B 对比
 
 将不同生成结果加入对比，支持：
@@ -246,6 +287,7 @@ AI 会根据描述自动生成对应的音色，并支持一键克隆到声音�
 - 实时进度追踪
 - 任务持久化（重启后自动恢复）
 - 活跃任务自动刷新
+- 任务删除功能（带确认弹窗、视觉反馈、异常处理）
 
 ***
 
@@ -256,10 +298,12 @@ AI 会根据描述自动生成对应的音色，并支持一键克隆到声音�
 | POST   | `/api/generate`     | 语音生成    |
 | POST   | `/api/clone`        | 声音克隆    |
 | POST   | `/api/design-voice` | 音色设计    |
+| POST   | `/api/transcribe`   | 音频转文字   |
 | GET    | `/api/tasks`        | 获取所有任务  |
 | GET    | `/api/tasks/:id`    | 获取单个任务  |
+| GET    | `/api/tasks/:id/text` | 获取转录结果文本 |
 | DELETE | `/api/tasks/:id`    | 删除任务    |
-| GET    | `/output/:filename` | 下载生成的音频 |
+| GET    | `/output/:filename` | 下载生成的音频/文本 |
 
 ***
 
