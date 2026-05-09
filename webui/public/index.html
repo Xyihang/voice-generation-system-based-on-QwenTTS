@@ -543,6 +543,30 @@
             opacity: 0.8;
         }
 
+        .file-info {
+            padding: 10px 14px;
+            background: var(--primary-light);
+            border-radius: 10px;
+            font-size: 0.88rem;
+            margin-top: 8px;
+        }
+
+        .btn-loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         .audio-source-switcher {
             display: flex;
             gap: 8px;
@@ -1473,6 +1497,10 @@
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="vertical-align: middle; margin-right: 6px;"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-1 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
                 声音设计
             </button>
+            <button class="tab" data-tab="transcribe">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="vertical-align: middle; margin-right: 6px;"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6zm2-6h8v2H8v-2zm0-4h8v2H8v-2z"/></svg>
+                音频转文字
+            </button>
         </div>
 
         <div id="generate-panel" class="card">
@@ -1719,6 +1747,75 @@
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                     一键克隆此声音 → 跳转到声音克隆
                 </button>
+            </div>
+        </div>
+
+        <div id="transcribe-panel" class="card hidden">
+            <h2 class="card-title">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6zm2-6h8v2H8v-2zm0-4h8v2H8v-2z"/></svg>
+                音频转文字
+            </h2>
+
+            <div class="form-group">
+                <label>上传音频文件</label>
+                <div class="audio-source-switcher">
+                    <button class="source-btn active" id="transcribe-upload-btn" onclick="switchTranscribeSource('upload')">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+                        上传文件
+                    </button>
+                    <button class="source-btn" id="transcribe-url-btn" onclick="switchTranscribeSource('url')">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+                        输入URL
+                    </button>
+                </div>
+
+                <div id="transcribe-upload-area" class="upload-area" style="margin-top: 12px;">
+                    <div class="upload-icon">
+                        <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+                    </div>
+                    <p class="upload-text">拖拽音频文件到此处，或<span class="upload-link">点击选择</span></p>
+                    <p class="upload-hint">支持 WAV, MP3, OGG, FLAC, M4A, WEBM 格式（最大 50MB）</p>
+                    <input type="file" id="transcribe-file" accept=".wav,.mp3,.ogg,.flac,.m4a,.webm" style="display: none;">
+                </div>
+                <div id="transcribe-url-area" style="display: none; margin-top: 12px;">
+                    <input type="text" id="transcribe-url" placeholder="输入音频文件URL (http://...)">
+                </div>
+                <div id="transcribe-file-info" class="file-info" style="display: none;"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="transcribe-language">语言</label>
+                <select id="transcribe-language">
+                    <option value="zh">中文</option>
+                    <option value="en">英语</option>
+                    <option value="ja">日语</option>
+                    <option value="ko">韩语</option>
+                    <option value="de">德语</option>
+                    <option value="fr">法语</option>
+                    <option value="ru">俄语</option>
+                    <option value="pt">葡萄牙语</option>
+                    <option value="es">西班牙语</option>
+                    <option value="it">意大利语</option>
+                </select>
+            </div>
+
+            <button class="btn btn-primary" id="transcribe-btn">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6zm2-6h8v2H8v-2zm0-4h8v2H8v-2z"/></svg>
+                开始转录
+            </button>
+
+            <div class="error-message" id="transcribe-error"></div>
+            <div class="success-message" id="transcribe-success"></div>
+
+            <div id="transcribe-result" class="card" style="display: none; margin-top: 16px; background: var(--surface-raised); border: 1px solid var(--card-border);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary);">转录结果</h3>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="copyTranscribeText()" style="padding: 4px 12px; border: 1px solid var(--input-border); border-radius: 8px; background: var(--input-bg); color: var(--text-primary); cursor: pointer; font-size: 0.82rem;">复制</button>
+                        <button id="transcribe-to-clone-btn" onclick="importTranscribeToClone()" style="padding: 4px 12px; border: none; border-radius: 8px; background: var(--primary); color: var(--on-primary); cursor: pointer; font-size: 0.82rem; font-weight: 600; display: none;">🧬 导入克隆</button>
+                    </div>
+                </div>
+                <div id="transcribe-text" style="white-space: pre-wrap; line-height: 1.7; font-size: 0.92rem; color: var(--text-primary); max-height: 400px; overflow-y: auto; padding: 12px; background: var(--input-bg); border-radius: 10px; border: 1px solid var(--input-border);"></div>
             </div>
         </div>
 
@@ -2127,7 +2224,8 @@
             const panels = {
                 generate: document.getElementById('generate-panel'),
                 clone: document.getElementById('clone-panel'),
-                design: document.getElementById('design-panel')
+                design: document.getElementById('design-panel'),
+                transcribe: document.getElementById('transcribe-panel')
             };
 
             function showPanel(name) {
@@ -2900,6 +2998,7 @@
             initGenerate();
             initClone();
             initDesign();
+            initTranscribe();
             loadCompareFromStorage();
             handleUrlParams();
         });
@@ -2916,10 +3015,17 @@
             const language = params.get('language');
 
             if (refAudio) {
-                const cloneAudio = document.getElementById('clone-audio');
-                if (cloneAudio) {
-                    cloneAudio.src = refAudio;
-                    cloneAudio.closest('.audio-player')?.classList.add('show');
+                uploadedAudioUrl = refAudio;
+                const refAudioEl = document.getElementById('clone-ref-audio');
+                if (refAudioEl) {
+                    refAudioEl.src = refAudio;
+                    refAudioEl.load();
+                }
+                const preview = document.getElementById('clone-preview');
+                if (preview) {
+                    preview.classList.add('active');
+                    const fileName = document.getElementById('clone-file-name');
+                    if (fileName) fileName.textContent = '转录参考音频';
                 }
             }
             if (refText) {
@@ -2936,6 +3042,231 @@
             }
 
             window.history.replaceState({}, '', '/');
+        }
+
+        function switchTranscribeSource(type) {
+            const uploadArea = document.getElementById('transcribe-upload-area');
+            const urlArea = document.getElementById('transcribe-url-area');
+            const uploadBtn = document.getElementById('transcribe-upload-btn');
+            const urlBtn = document.getElementById('transcribe-url-btn');
+
+            if (type === 'upload') {
+                uploadArea.style.display = '';
+                urlArea.style.display = 'none';
+                uploadBtn.classList.add('active');
+                urlBtn.classList.remove('active');
+            } else {
+                uploadArea.style.display = 'none';
+                urlArea.style.display = '';
+                uploadBtn.classList.remove('active');
+                urlBtn.classList.add('active');
+            }
+        }
+
+        function copyTranscribeText() {
+            const textEl = document.getElementById('transcribe-text');
+            if (textEl) {
+                navigator.clipboard.writeText(textEl.textContent).then(() => {
+                    const btn = textEl.parentElement.querySelector('button');
+                    const orig = btn.textContent;
+                    btn.textContent = '已复制';
+                    setTimeout(() => btn.textContent = orig, 1500);
+                });
+            }
+        }
+
+        function importTranscribeToClone() {
+            const cloneBtn = document.getElementById('transcribe-to-clone-btn');
+            if (!cloneBtn) return;
+
+            const refAudio = cloneBtn.dataset.refAudio;
+            const refText = cloneBtn.dataset.refText;
+            const language = cloneBtn.dataset.language;
+
+            if (refAudio) uploadedAudioUrl = refAudio;
+
+            const refAudioEl = document.getElementById('clone-ref-audio');
+            if (refAudioEl && refAudio) {
+                refAudioEl.src = refAudio;
+                refAudioEl.load();
+            }
+
+            const preview = document.getElementById('clone-preview');
+            if (preview && refAudio) {
+                preview.classList.add('active');
+                const fileName = document.getElementById('clone-file-name');
+                if (fileName) fileName.textContent = '转录参考音频';
+            }
+
+            const refTextInput = document.getElementById('clone-ref-text');
+            if (refTextInput && refText) refTextInput.value = refText;
+
+            const langMap = { 'zh': 'Chinese', 'en': 'English', 'ja': 'Japanese', 'ko': 'Korean', 'de': 'German', 'fr': 'French', 'ru': 'Russian', 'pt': 'Portuguese', 'es': 'Spanish', 'it': 'Italian' };
+            const langInput = document.getElementById('clone-language');
+            if (langInput && language) langInput.value = langMap[language] || language;
+
+            document.querySelector('[data-tab="clone"]')?.click();
+        }
+
+        function initTranscribe() {
+            const fileInput = document.getElementById('transcribe-file');
+            const uploadArea = document.getElementById('transcribe-upload-area');
+            const fileInfo = document.getElementById('transcribe-file-info');
+            const btn = document.getElementById('transcribe-btn');
+
+            let selectedFile = null;
+            let lastSubmittedKey = '';
+
+            uploadArea.addEventListener('click', () => fileInput.click());
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = 'var(--primary)';
+                uploadArea.style.background = 'var(--focus-glow)';
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.style.borderColor = '';
+                uploadArea.style.background = '';
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = '';
+                uploadArea.style.background = '';
+                if (e.dataTransfer.files.length > 0) {
+                    selectedFile = e.dataTransfer.files[0];
+                    showTranscribeFileInfo(selectedFile);
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    selectedFile = e.target.files[0];
+                    showTranscribeFileInfo(selectedFile);
+                }
+            });
+
+            function showTranscribeFileInfo(file) {
+                const size = (file.size / 1024 / 1024).toFixed(2);
+                fileInfo.style.display = 'block';
+                fileInfo.innerHTML = `<span style="color:var(--success-text)">📎 ${file.name}</span> <span style="color:var(--text-tertiary); font-size:0.82rem;">(${size} MB)</span>`;
+            }
+
+            btn.addEventListener('click', async () => {
+                const sourceType = document.getElementById('transcribe-upload-btn').classList.contains('active') ? 'upload' : 'url';
+                const errorEl = document.getElementById('transcribe-error');
+                const successEl = document.getElementById('transcribe-success');
+                const resultEl = document.getElementById('transcribe-result');
+                const textEl = document.getElementById('transcribe-text');
+
+                errorEl.style.display = 'none';
+                successEl.style.display = 'none';
+                resultEl.style.display = 'none';
+
+                if (sourceType === 'upload' && !selectedFile) {
+                    errorEl.textContent = '请先上传音频文件';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                if (sourceType === 'url') {
+                    errorEl.textContent = 'URL模式暂不支持，请使用文件上传';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                const fileKey = selectedFile.name + '_' + selectedFile.size;
+                if (fileKey === lastSubmittedKey) {
+                    errorEl.textContent = '该文件已提交过转录任务，请勿重复提交';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                lastSubmittedKey = fileKey;
+                showLoading('正在提交任务', '上传音频文件中...');
+
+                try {
+                    const formData = new FormData();
+                    formData.append('audio', selectedFile);
+                    formData.append('language', document.getElementById('transcribe-language').value);
+
+                    const response = await fetch('/api/transcribe', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (!data.success) {
+                        throw new Error(data.error || '转录失败');
+                    }
+
+                    updateLoading('任务已入队，等待执行...', 5);
+
+                    if (currentPollingInterval) clearInterval(currentPollingInterval);
+
+                    currentPollingInterval = setInterval(async () => {
+                        try {
+                            const statusRes = await fetch(`${API_BASE}/api/tasks/${data.taskId}`);
+                            const statusData = await statusRes.json();
+
+                            if (!statusData.success) {
+                                clearInterval(currentPollingInterval);
+                                hideLoading();
+                                showError('transcribe-error', '获取任务状态失败');
+                                return;
+                            }
+
+                            const task = statusData.task;
+                            updateLoading(
+                                task.status === 'running' ? '正在转录中...' :
+                                task.status === 'pending' ? '等待中...' :
+                                task.status === 'completed' ? '已完成' : '处理中',
+                                task.progress
+                            );
+
+                            if (task.status === 'completed') {
+                                clearInterval(currentPollingInterval);
+                                updateLoading('转录完成', 100);
+
+                                try {
+                                    const textRes = await fetch(`${API_BASE}/api/tasks/${data.taskId}/text`);
+                                    const textData = await textRes.json();
+                                    if (textData.success) {
+                                        textEl.textContent = textData.text;
+                                        resultEl.style.display = 'block';
+
+                                        const cloneBtn = document.getElementById('transcribe-to-clone-btn');
+                                        if (cloneBtn) {
+                                            cloneBtn.style.display = '';
+                                            cloneBtn.dataset.refAudio = task.params?.audioPath || '';
+                                            cloneBtn.dataset.refText = textData.text || '';
+                                            cloneBtn.dataset.language = task.params?.language || 'zh';
+                                        }
+                                    }
+                                } catch {}
+
+                                setTimeout(hideLoading, 800);
+                            }
+
+                            if (task.status === 'failed') {
+                                clearInterval(currentPollingInterval);
+                                hideLoading();
+                                showError('transcribe-error', task.error || '转录任务失败');
+                                lastSubmittedKey = '';
+                            }
+                        } catch (e) {
+                            // network error, keep polling
+                        }
+                    }, 2000);
+
+                } catch (e) {
+                    hideLoading();
+                    showError('transcribe-error', e.message);
+                    lastSubmittedKey = '';
+                }
+            });
         }
     </script>
 </body>

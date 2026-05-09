@@ -97,14 +97,19 @@ class TaskExecutor {
                 result = await this.executeCloneTask(task);
             } else if (task.type === 'design') {
                 result = await this.executeDesignTask(task);
+            } else if (task.type === 'transcribe') {
+                result = await this.executeTranscribeTask(task);
             } else {
                 throw new Error(`未知任务类型：${task.type}`);
             }
 
             // 任务完成
+            const ext = task.type === 'transcribe' ? '.txt' : '.wav';
             queue.completeTask(task.id, {
                 message: '任务完成',
-                audioUrl: `/output/${path.basename(result.output)}`
+                audioUrl: `/output/${path.basename(result.output)}`,
+                resultFile: `/output/${path.basename(result.output)}`,
+                resultType: ext === '.txt' ? 'text' : 'audio'
             });
             
             console.log(`[TaskExecutor] 任务完成：${task.id}`);
@@ -238,6 +243,42 @@ class TaskExecutor {
         });
     }
 
+    executeTranscribeTask(task) {
+        return new Promise((resolve, reject) => {
+            const outputFile = path.join(__dirname, '..', 'output', `${task.id}.txt`);
+
+            const audioPath = task.params.audioPath.startsWith('/')
+                ? path.join(__dirname, '..', task.params.audioPath)
+                : task.params.audioPath;
+
+            const configPath = this.writeConfigFile(task.id, {
+                audio_path: audioPath,
+                output: outputFile,
+                language: task.params.language || 'zh',
+                device: task.params.device || 'auto'
+            });
+
+            const args = [
+                path.join(__dirname, '..', 'scripts', 'transcribe.py'),
+                '--config', configPath
+            ];
+
+            console.log(`[TaskExecutor] 执行转录任务：${task.id}`);
+
+            const pythonProcess = spawn(CONDA_PYTHON, ['-u', ...args], {
+                cwd: path.join(__dirname, '..'),
+                env: {
+                    ...process.env,
+                    PYTHONIOENCODING: 'utf-8',
+                    PYTHONUTF8: '1',
+                    PYTHONUNBUFFERED: '1'
+                }
+            });
+
+            this._bindProcessHandlers(pythonProcess, task, outputFile, configPath, resolve, reject);
+        });
+    }
+
     _bindProcessHandlers(pythonProcess, task, outputFile, configPath, resolve, reject) {
         let stdout = '';
         let stderr = '';
@@ -248,17 +289,17 @@ class TaskExecutor {
             console.log(`[Task ${task.id}] ${output.trim()}`);
 
             const queue = taskQueue.getInstance();
-            if (output.includes('[1/5]') || output.includes('[1/2]')) queue.updateTask(task.id, { progress: 20 });
-            else if (output.includes('[2/5]')) queue.updateTask(task.id, { progress: 30 });
-            else if (output.includes('[3/5]') || output.includes('[3/3]')) queue.updateTask(task.id, { progress: 40 });
-            else if (output.includes('Generating chunk')) {
+            if (output.includes('[1/5]') || output.includes('[1/2]') || output.includes('[1/4]')) queue.updateTask(task.id, { progress: 20 });
+            else if (output.includes('[2/5]') || output.includes('[2/4]')) queue.updateTask(task.id, { progress: 30 });
+            else if (output.includes('[3/5]') || output.includes('[3/3]') || output.includes('[3/4]')) queue.updateTask(task.id, { progress: 50 });
+            else if (output.includes('Generating chunk') || output.includes('[INFO] Transcri')) {
                 const match = output.match(/chunk (\d+)\/(\d+)/);
                 if (match) {
                     const progress = 40 + Math.round((parseInt(match[1]) / parseInt(match[2])) * 45);
                     queue.updateTask(task.id, { progress });
                 }
             }
-            else if (output.includes('[4/5]') || output.includes('[2/2]')) queue.updateTask(task.id, { progress: 90 });
+            else if (output.includes('[4/5]') || output.includes('[2/2]') || output.includes('[4/4]')) queue.updateTask(task.id, { progress: 90 });
             else if (output.includes('[5/5]') || output.includes('[DONE]') || output.includes('Output saved')) queue.updateTask(task.id, { progress: 100 });
         });
 

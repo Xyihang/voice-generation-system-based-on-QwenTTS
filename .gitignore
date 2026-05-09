@@ -3,6 +3,10 @@ qwen3-tts-base-model/
 qwen3-tts-model/
 qwen3-tts-tokenizer/
 *.safetensors
+*.pt
+*.tmp
+webui/whisper_models/
+OTHER/
 
 # ============ 音频 / 视频文件 ============
 *.wav
@@ -45,6 +49,8 @@ debug*.html
 # ============ 备份和压缩包 ============
 *.backup_*
 *.zip
+backup_*/
+_temp_bak/
 webui/public/*.backup_*
 
 # ============ 内部规划文档 ============

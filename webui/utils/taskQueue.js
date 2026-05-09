@@ -109,11 +109,12 @@ class TaskQueue {
 
                 // 对已完成/已失败的任务，检查音频文件是否存在
                 if (taskData.status === 'completed' || taskData.status === 'failed') {
-                    const audioFile = path.join(outputDir, `${taskData.id}.wav`);
-                    if (!fs.existsSync(audioFile)) {
+                    const wavFile = path.join(outputDir, `${taskData.id}.wav`);
+                    const txtFile = path.join(outputDir, `${taskData.id}.txt`);
+                    if (!fs.existsSync(wavFile) && !fs.existsSync(txtFile)) {
                         fs.unlinkSync(taskFile);
                         removed++;
-                        console.log(`[TaskQueue] 音频文件已删除，清理任务：${taskData.id} (${taskData.type})`);
+                        console.log(`[TaskQueue] 结果文件已删除，清理任务：${taskData.id} (${taskData.type})`);
                         continue;
                     }
                 }
@@ -138,8 +139,9 @@ class TaskQueue {
 
         for (const [taskId, task] of this.tasks) {
             if (task.status === 'completed' || task.status === 'failed') {
-                const audioFile = path.join(outputDir, `${taskId}.wav`);
-                if (!fs.existsSync(audioFile)) {
+                const wavFile = path.join(outputDir, `${taskId}.wav`);
+                const txtFile = path.join(outputDir, `${taskId}.txt`);
+                if (!fs.existsSync(wavFile) && !fs.existsSync(txtFile)) {
                     this.tasks.delete(taskId);
                     const taskFile = path.join(this.taskDir, `${taskId}.json`);
                     if (fs.existsSync(taskFile)) {

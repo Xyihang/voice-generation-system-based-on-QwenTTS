@@ -872,7 +872,8 @@
         const TYPE_MAP = {
             'generate': '🎤 语音生成',
             'clone': '🔊 声音克隆',
-            'design': '🎨 音色设计'
+            'design': '🎨 音色设计',
+            'transcribe': '📝 音频转文字'
         };
 
         async function loadTasks() {
@@ -1198,7 +1199,7 @@
 
             tasks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-            const completedWithResult = tasks.filter(t => t.status === 'completed' && t.result?.audioUrl);
+            const completedWithResult = tasks.filter(t => t.status === 'completed' && (t.result?.audioUrl || t.result?.resultFile));
 
             taskList.innerHTML = tasks.map(task => {
                 const statusMap = {
@@ -1212,8 +1213,9 @@
                 const isCompleted = task.status === 'completed';
                 const isRunning = task.status === 'running';
                 const isDesign = task.type === 'design';
+                const isTranscribe = task.type === 'transcribe';
 
-                const taskText = task.params?.text || '';
+                const taskText = isTranscribe ? (task.params?.audioPath || '') : (task.params?.text || '');
                 const displayText = taskText.length > 80 ? taskText.substring(0, 80) + '...' : taskText;
 
                 const shortId = task.id.substring(0, 8);
@@ -1270,7 +1272,16 @@
                             <div class="task-error">${task.error.substring(0, 300)}</div>
                         ` : ''}
 
-                        ${isCompleted && task.result ? `
+                        ${isCompleted && isTranscribe && task.result ? `
+                            <div class="task-actions">
+                                <button class="action-btn" onclick="copyTranscribeResult('${task.id}')">📋 复制文本</button>
+                                <a href="${task.result.resultFile}" download class="action-btn">⬇️ 下载</a>
+                                <button class="clone-btn" onclick="navigateToCloneFromTranscribe('${task.id}', '${task.params?.audioPath || ''}', '${task.params?.language || 'zh'}')">🧬 导入克隆</button>
+                            </div>
+                            <div class="task-transcribe-result" id="tr-${task.id}" style="white-space: pre-wrap; line-height: 1.7; font-size: 0.88rem; color: var(--text-primary); max-height: 300px; overflow-y: auto; padding: 12px; background: var(--input-bg); border-radius: 10px; border: 1px solid var(--input-border); margin-top: 12px;">加载中...</div>
+                        ` : ''}
+
+                        ${isCompleted && !isTranscribe && task.result ? `
                             <div class="task-actions">
                                 <button class="action-btn" onclick="playFromStart('${task.id}')">▶ 播放</button>
                                 <a href="${task.result.audioUrl}" download class="action-btn">⬇️ 下载</a>
@@ -1294,10 +1305,14 @@
             }).join('');
 
             completedWithResult.forEach(task => {
-                const audio = document.getElementById(`audio-${task.id}`);
-                if (audio) {
-                    audioElements[task.id] = audio;
-                    drawWaveform(task.id, task.result.audioUrl);
+                if (task.type === 'transcribe') {
+                    loadTranscribeResult(task.id);
+                } else {
+                    const audio = document.getElementById(`audio-${task.id}`);
+                    if (audio) {
+                        audioElements[task.id] = audio;
+                        drawWaveform(task.id, task.result.audioUrl);
+                    }
                 }
             });
         }
@@ -1307,6 +1322,56 @@
                 loadTasks();
             }
         });
+
+        async function loadTranscribeResult(taskId) {
+            const el = document.getElementById(`tr-${taskId}`);
+            if (!el) return;
+            try {
+                const res = await fetch(`/api/tasks/${taskId}/text`);
+                const data = await res.json();
+                if (data.success) {
+                    el.textContent = data.text || '(空)';
+                } else {
+                    el.textContent = '加载失败';
+                }
+            } catch {
+                el.textContent = '加载失败';
+            }
+        }
+
+        function copyTranscribeResult(taskId) {
+            const el = document.getElementById(`tr-${taskId}`);
+            if (el) {
+                navigator.clipboard.writeText(el.textContent).then(() => {
+                    showToast('已复制到剪贴板', 'success');
+                }).catch(() => {
+                    showToast('复制失败', 'error');
+                });
+            }
+        }
+
+        async function navigateToCloneFromTranscribe(taskId, audioPath, language) {
+            if (!audioPath) {
+                showToast('找不到源音频文件', 'error');
+                return;
+            }
+
+            let refText = '';
+            try {
+                const res = await fetch(`/api/tasks/${taskId}/text`);
+                const data = await res.json();
+                if (data.success) refText = data.text || '';
+            } catch {}
+
+            const langMap = { 'zh': 'Chinese', 'en': 'English', 'ja': 'Japanese', 'ko': 'Korean', 'de': 'German', 'fr': 'French', 'ru': 'Russian', 'pt': 'Portuguese', 'es': 'Spanish', 'it': 'Italian' };
+            const params = new URLSearchParams({
+                tab: 'clone',
+                refAudio: audioPath,
+                refText: refText,
+                language: langMap[language] || language || 'Chinese'
+            });
+            window.location.href = `/?${params.toString()}`;
+        }
 
         loadTasks();
     </script>

@@ -209,6 +209,49 @@ app.post('/api/upload', upload.single('audio'), (req, res) => {
     });
 });
 
+app.post('/api/transcribe', upload.single('audio'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: '请上传音频文件' });
+    }
+
+    const { language } = req.body;
+
+    const queue = taskQueue.getInstance();
+    const task = queue.createTask('transcribe', {
+        audioPath: `/uploads/${req.file.filename}`,
+        language: language || 'zh'
+    });
+
+    console.log(`[API] 音频转文字任务已创建：${task.id}`);
+
+    res.json({
+        success: true,
+        taskId: task.id,
+        message: '转录任务已提交，请在任务列表中查看进度'
+    });
+});
+
+app.get('/api/tasks/:id/text', (req, res) => {
+    const queue = taskQueue.getInstance();
+    const task = queue.getTask(req.params.id);
+
+    if (!task) {
+        return res.status(404).json({ success: false, error: '任务不存在' });
+    }
+
+    if (task.type !== 'transcribe') {
+        return res.status(400).json({ success: false, error: '非转录任务' });
+    }
+
+    const txtPath = path.join(__dirname, 'output', `${task.id}.txt`);
+    if (!fs.existsSync(txtPath)) {
+        return res.status(404).json({ success: false, error: '转录结果文件不存在' });
+    }
+
+    const text = fs.readFileSync(txtPath, 'utf-8');
+    res.json({ success: true, text });
+});
+
 app.get('/api/speakers', (req, res) => {
     const speakers = [
         { id: 'Vivian', name: 'Vivian', language: 'Chinese', description: '明亮活泼女声' },
