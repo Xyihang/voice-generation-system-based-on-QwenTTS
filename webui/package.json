@@ -1,6 +1,7 @@
 {
   "name": "qwen3-tts-webui",
   "version": "1.0.0",
+  "license": "UNLICENSED",
   "description": "Qwen3-TTS WebUI - 语音合成与克隆系统",
   "main": "server.js",
   "scripts": {
